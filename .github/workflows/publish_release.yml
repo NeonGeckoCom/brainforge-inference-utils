@@ -1,0 +1,19 @@
+name: Publish GitHub Release
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  tag_release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get Version
+        run: |
+          VERSION=$(python setup.py --version)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+      - uses: ncipollo/release-action@v1
+        with:
+          token: ${{secrets.GITHUB_TOKEN}}
+          tag: ${{env.VERSION}}
