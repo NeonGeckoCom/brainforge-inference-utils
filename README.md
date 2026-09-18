@@ -2,10 +2,9 @@
 
 Pluggable pipelines for shaping BrainForge LLM requests and responses.
 
-This package factors the request/response orchestration currently embedded in
-`brainforge-webapp` into a standalone, framework-agnostic library. Concrete
+This package defines LLM request/response orchestration. Concrete
 behavior (conversation history handling, RAG/MCP context injection, persona
-validation, citations, response sanitizing, safety guardrails, ...) is
+validation, citations, response sanitizing, safety guardrails, ...) can be
 implemented as **steps** that plug into one of two pipelines:
 
 - **Input pipeline** — runs before generation and shapes the request: selecting
@@ -17,12 +16,6 @@ Both pipelines operate on a `UserTransaction`, which carries the request and
 response as the existing `neon-data-models` models (`LLMRequest` / `LLMResponse`)
 used across the BrainForge stack.
 
-## Status
-
-Early scaffolding, deliberately minimal. This cut defines only the pipelines and
-the step base classes they run; it performs no LLM calls. Generation, a step
-registry, and richer per-request state are intentionally deferred.
-
 ## Concepts
 
 | Concept | Purpose |
@@ -32,7 +25,6 @@ registry, and richer per-request state are intentionally deferred.
 | `ResponseStep` | Annotates/rewrites `transaction.response` after generation. |
 | `InputPipeline` / `ResponsePipeline` | Run an ordered list of steps over a transaction. |
 | `PipelineConfig` / `StepConfig` | Declarative, ordered step lists (see below). |
-| `steps_by_id` | Static `id -> Step class` mapping (mirrors `collectors_by_id` in `brainforge_dataset_utils`); concrete steps are registered here as they land. |
 | `build_pipelines(config)` | Build both pipelines from config, resolving step ids via `steps_by_id`. |
 
 ## Usage sketch
@@ -60,7 +52,7 @@ this package does not perform or depend on any particular LLM transport.
   (e.g. a citation formatter and the sanitizer that strips it) belong in the
   same module and should derive from a shared constant so they cannot drift.
 
-## Deferred (stashed for later)
+## Deferred
 
 - A step **registry** (in-process registration + entry-point discovery under
   `brainforge.inference.steps`). For now, steps are resolved from the static
