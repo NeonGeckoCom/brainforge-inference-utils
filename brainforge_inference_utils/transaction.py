@@ -42,6 +42,9 @@ class UserTransaction(BaseModel):
         default=None,
         description="The generated response shaped by the response pipeline; "
                     "None until generation completes")
+    request_context: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Client-provided context for the request for input steps")
     input_context: Dict[str, Any] = Field(
         default_factory=dict,
         description="Input-step context keyed by input step id")
