@@ -11,6 +11,7 @@ from neon_data_models.models.api.llm import (
 
 from brainforge_inference_utils.version import __version__
 
+from brainforge_inference_utils.client import BrainForgeClient
 from brainforge_inference_utils.config import PipelineConfig, StepConfig
 from brainforge_inference_utils.pipeline import (
     InputPipeline,
@@ -27,6 +28,7 @@ from brainforge_inference_utils.transaction import UserTransaction
 
 __all__ = [
     "__version__",
+    "BrainForgeClient",
     # Request/response models (re-exported from neon-data-models)
     "LLMRequest",
     "LLMResponse",

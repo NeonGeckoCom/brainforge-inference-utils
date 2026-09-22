@@ -64,7 +64,8 @@ class TestBuildPipelines:
     def test_response_step_in_input_list_raises(self):
         with pytest.raises(TypeError, match="not an InputStep"):
             build_pipelines(
-                PipelineConfig.model_validate({"input": ["prefix_response"]}),
+                PipelineConfig.model_validate({
+                    "input": ["prefix_response"]}),
                 TEST_STEPS,
             )
 

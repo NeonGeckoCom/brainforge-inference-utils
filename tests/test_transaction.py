@@ -27,3 +27,18 @@ class TestUserTransaction:
         transaction = UserTransaction(request=make_request(max_history=2))
         transaction.request.max_history = 5
         assert transaction.request.max_history == 5
+
+    def test_pipeline_context_defaults_to_independent_dicts(self):
+        first = UserTransaction(request=make_request())
+        second = UserTransaction(request=make_request())
+        first.input_context["rag"] = {"documents": ["document"]}
+        first.output_context["citations"] = {"markers": [1]}
+        assert second.input_context == {}
+        assert second.output_context == {}
+
+    def test_input_and_output_step_ids_do_not_share_a_namespace(self):
+        transaction = UserTransaction(request=make_request())
+        transaction.input_context["shared_id"] = {"from": "input"}
+        transaction.output_context["shared_id"] = {"from": "output"}
+        assert transaction.input_context["shared_id"] == {"from": "input"}
+        assert transaction.output_context["shared_id"] == {"from": "output"}

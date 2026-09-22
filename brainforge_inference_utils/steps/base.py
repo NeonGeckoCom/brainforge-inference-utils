@@ -21,8 +21,10 @@ Both share two conventions:
    the pipeline. This keeps configuration order the only ordering contract and
    lets steps be added, removed, or substituted freely.
 
-2. **Shared object, narrow surface.** Data that must pass between steps travels
-   on the `UserTransaction`, not through a step-to-step interface.
+2. **Shared object, separate namespaces.** Data that must pass between steps
+   travels on the `UserTransaction`, not through a step-to-step interface.
+   Input steps use `transaction.input_context`; response steps use
+   `transaction.output_context`. Step ids are unique only within one side.
 """
 
 from __future__ import annotations
