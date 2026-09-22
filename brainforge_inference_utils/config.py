@@ -14,7 +14,11 @@ Example (YAML)::
     pipeline:
       input:
         - persona                                   # shorthand for {id: persona}
-        - {id: ambient_context, config: {timeout: 5.0}}
+        - id: ambient_context
+          config:
+            mcp_url: https://mcp.neonaiservices2.com/mcp
+            default_location: Renton, WA, USA
+            timeout: 5.0
         - {id: rag, config: {top_k: 10}}
         - {id: history_window, config: {max_messages: 5}}
         - {id: sanitize}

@@ -14,21 +14,21 @@ from __future__ import annotations
 
 from typing import Dict, Type
 
+from brainforge_inference_utils.steps.ambient_context import AmbientContextStep
 from brainforge_inference_utils.steps.base import (
     InputStep,
     ResponseStep,
     Step,
 )
 
-# Static id -> Step class mapping. Populate as concrete steps are implemented,
-# e.g.:
-#     from brainforge_inference_utils.steps.persona import PersonaStep
-#     from brainforge_inference_utils.steps.citations import CitationFormatStep
-#
-#     steps_by_id = {
-#         PersonaStep.id: PersonaStep,
-#         CitationFormatStep.id: CitationFormatStep,
-#     }
-steps_by_id: Dict[str, Type[Step]] = {}
+steps_by_id: Dict[str, Type[Step]] = {
+    AmbientContextStep.id: AmbientContextStep,
+}
 
-__all__ = ["Step", "InputStep", "ResponseStep", "steps_by_id"]
+__all__ = [
+    "Step",
+    "InputStep",
+    "ResponseStep",
+    "AmbientContextStep",
+    "steps_by_id",
+]

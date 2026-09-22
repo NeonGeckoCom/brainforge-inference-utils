@@ -28,9 +28,15 @@ class TestBuildPipelines:
         assert input_pipeline.steps == []
         assert response_pipeline.steps == []
 
-    def test_default_mapping_is_empty(self):
-        assert steps_by_id == {}
-        with pytest.raises(KeyError, match="Known steps: \\[\\]"):
+    def test_default_mapping_includes_first_party_steps(self):
+        assert "ambient_context" in steps_by_id
+        input_pipeline, _ = build_pipelines(PipelineConfig.model_validate({
+            "input": ["ambient_context"],
+        }))
+        assert len(input_pipeline.steps) == 1
+        assert input_pipeline.steps[0].id == "ambient_context"
+
+        with pytest.raises(KeyError, match="append_query"):
             build_pipelines(PipelineConfig.model_validate({
                 "input": ["append_query"],
             }))
