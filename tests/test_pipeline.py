@@ -45,11 +45,20 @@ class TestBuildPipelines:
 
     def test_default_mapping_includes_first_party_steps(self):
         assert "ambient_context" in steps_by_id
-        input_pipeline, _ = build_pipelines(PipelineConfig.model_validate({
-            "input": ["ambient_context"],
-        }))
-        assert len(input_pipeline.steps) == 1
-        assert input_pipeline.steps[0].id == "ambient_context"
+        assert "rag" in steps_by_id
+        assert "citations" in steps_by_id
+        assert "request_history" in steps_by_id
+        input_pipeline, response_pipeline = build_pipelines(
+            PipelineConfig.model_validate({
+                "input": ["ambient_context", "rag", "request_history"],
+                "response": ["citations"],
+            }))
+        assert [step.id for step in input_pipeline.steps] == [
+            "ambient_context",
+            "rag",
+            "request_history",
+        ]
+        assert [step.id for step in response_pipeline.steps] == ["citations"]
 
         with pytest.raises(KeyError, match="append_query"):
             build_pipelines(PipelineConfig.model_validate({

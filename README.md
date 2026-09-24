@@ -3,19 +3,21 @@
 Pluggable pipelines for shaping BrainForge LLM requests and responses.
 
 This package defines request/response orchestration that attaches to an
-existing inference workflow. Concrete behavior (conversation history handling,
-RAG/MCP context injection, persona validation, citations, response sanitizing,
+existing inference workflow. Concrete behavior (ambient context, RAG/MCP
+injection, request history validation, citations, response sanitizing,
 safety guardrails, ...) can be implemented as **steps** that plug into one of
 two pipelines:
 
-- **Input pipeline** — runs before generation and shapes the request: selecting
-  a persona, windowing/compacting history, retrieving RAG or MCP context, etc.
+- **Input pipeline** — runs before generation and shapes the request:
+  injecting ambient time/weather, retrieving RAG for host-selected
+  providers, then validating and truncating history last.
 - **Response pipeline** — runs after generation and shapes the response:
-  inserting citations, stripping artifacts, applying guardrails, etc.
+  citation rewrite via `ResponseParser`, sanitizing, guardrails, etc.
 
-This package does not call an LLM. The host performs generation between the
-two pipelines and keeps the `UserTransaction` returned by the input pipeline
-until the response is ready.
+Primary generation stays with the host, between the two pipelines. The host
+keeps the `UserTransaction` from the input pipeline until the response is
+ready. A response step may call a configured OpenAI-compatible endpoint
+(for example citation rewrite) without the host owning that second request.
 
 Both pipelines operate on a `UserTransaction`, which carries the request,
 response, and two per-side context dicts (`input_context` and
@@ -27,9 +29,10 @@ response, and two per-side context dicts (`input_context` and
 | Concept | Purpose |
 | --- | --- |
 | `UserTransaction` | The request/response pair plus `input_context` / `output_context` dicts. The host holds this object across generation. |
-| `BrainForgeClient` | Builds pipelines from config and exposes `run_input_pipeline` / `run_output_pipeline`. |
-| `InputStep` | Shapes `transaction.request` before generation. |
+| `BrainForgeClient` | Builds pipelines from config and exposes `run_input_pipeline` / `run_output_pipeline` / `supported_request_context`. |
+| `InputStep` | Shapes `transaction.request` before generation. Declares supported `request_context` keys/values. |
 | `ResponseStep` | Annotates/rewrites `transaction.response` after generation. |
+| `RequestContextOption` | One `request_context` key a step reads, with optional allowed values for hosts to present. |
 | `InputPipeline` / `ResponsePipeline` | Run an ordered list of steps over a transaction. |
 | `PipelineConfig` / `StepConfig` | Declarative, ordered step lists (see below). |
 | `build_pipelines(config)` | Build both pipelines from config, resolving step ids via `steps_by_id`. |
@@ -38,6 +41,9 @@ response, and two per-side context dicts (`input_context` and
 
 ```python
 client = BrainForgeClient(pipeline_config)
+
+options = await client.supported_request_context()
+# e.g. options["rag_providers"].values, options["conversational"].values
 
 transaction = await client.run_input_pipeline(llm_request)
 # host performs generation using transaction.request
