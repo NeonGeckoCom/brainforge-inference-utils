@@ -18,8 +18,8 @@ Step base classes.
 Two step types plug into the two pipelines:
 
 - `InputStep` runs before generation. It shapes the request on the
-  `UserTransaction` (persona selection, history windowing/compaction, RAG/MCP
-  context, ...), mutating it in place.
+  `UserTransaction` (RAG/MCP context, ambient context, request history
+  validation, ...), mutating it in place.
 - `ResponseStep` runs after generation. It has the complete response on the
   `UserTransaction` and may return a revised response (or mutate it in place) to
   annotate or rewrite it (citations, sanitizing, guardrails, ...).
@@ -41,11 +41,29 @@ Both share two conventions:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import ClassVar, Optional
+from dataclasses import dataclass
+from typing import Any, ClassVar, List, Optional, Sequence
 
 from neon_data_models.models.api.llm import LLMResponse
 
 from brainforge_inference_utils.transaction import UserTransaction
+
+
+@dataclass(frozen=True)
+class RequestContextOption:
+    """
+    One `UserTransaction.request_context` key a step reads.
+
+    Hosts collect these from the built pipeline to present the keys and, when
+    known, the values a client may send. `values is None` means the key is
+    supported but unconstrained (any value of the implied type). An empty
+    `values` list means the key is supported but no choices are available
+    right now (for example an empty live catalog).
+    """
+
+    key: str
+    values: Optional[Sequence[Any]] = None
+    description: str = ""
 
 
 class Step(ABC):
@@ -58,9 +76,13 @@ class Step(ABC):
 
     :cvar id: Unique step identifier used in configuration. Subclasses must set
         this to a stable, non-empty string.
+    :cvar request_context_options: Static `request_context` keys this step
+        reads. Override `supported_request_context` when allowed values must be
+        fetched live (for example a provider catalog).
     """
 
     id: ClassVar[str] = ""
+    request_context_options: ClassVar[Sequence[RequestContextOption]] = ()
 
     def __init__(self, config: Optional[dict] = None):
         """
@@ -72,6 +94,20 @@ class Step(ABC):
     def __repr__(self) -> str:
         return f"<{type(self).__name__} id={self.id!r}>"
 
+    async def supported_request_context(
+        self, timeout: float = 10.0
+    ) -> List[RequestContextOption]:
+        """
+        Return the `request_context` keys this step reads, with allowed values.
+
+        The default copies `request_context_options`. Override when values must
+        be fetched live (for example a provider catalog). `timeout` is unused
+        for static declarations.
+
+        :param timeout: Seconds to wait for a live catalog, when overridden.
+        """
+        return list(self.request_context_options)
+
 
 class InputStep(Step, ABC):
     """
@@ -80,6 +116,11 @@ class InputStep(Step, ABC):
     Implementations mutate `transaction.request` in place (selecting a persona,
     trimming or compacting history, injecting retrieved context, adjusting
     generation params, ...).
+
+    Steps that read `transaction.request_context` should declare those keys on
+    `request_context_options` (static choices) or override
+    `supported_request_context` (live catalogs). Hosts collect the result via
+    `BrainForgeClient.supported_request_context`.
     """
 
     def applicable(self, transaction: UserTransaction) -> Optional[str]:

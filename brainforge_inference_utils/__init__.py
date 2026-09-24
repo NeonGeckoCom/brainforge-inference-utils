@@ -32,6 +32,7 @@ from brainforge_inference_utils.pipeline import (
 from brainforge_inference_utils.steps import steps_by_id
 from brainforge_inference_utils.steps.base import (
     InputStep,
+    RequestContextOption,
     ResponseStep,
     Step,
 )
@@ -50,6 +51,7 @@ __all__ = [
     "Step",
     "InputStep",
     "ResponseStep",
+    "RequestContextOption",
     "steps_by_id",
     # Pipelines
     "InputPipeline",

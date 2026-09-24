@@ -21,13 +21,13 @@ the returned `UserTransaction` until the response is ready.
 
 from __future__ import annotations
 
-from typing import Mapping, Optional, Type
+from typing import Dict, Mapping, Optional, Type
 
 from neon_data_models.models.api.llm import LLMRequest, LLMResponse
 
 from brainforge_inference_utils.config import PipelineConfig
 from brainforge_inference_utils.pipeline import build_pipelines
-from brainforge_inference_utils.steps.base import Step
+from brainforge_inference_utils.steps.base import RequestContextOption, Step
 from brainforge_inference_utils.transaction import UserTransaction
 
 
@@ -42,6 +42,23 @@ class BrainForgeClient:
         self.config = config
         self.input_pipeline, self.response_pipeline = build_pipelines(
             config, steps)
+
+    async def supported_request_context(
+        self, timeout: float = 10.0
+    ) -> Dict[str, RequestContextOption]:
+        """
+        Collect `request_context` keys and allowed values from the pipeline.
+
+        The host uses this to populate UI; it does not call MCP itself.
+        Duplicate keys across steps are merged: enumerated values are unioned
+        in first-seen order, and if any declaration is unconstrained
+        (`values is None`) the merged option is unconstrained.
+        """
+        merged: Dict[str, RequestContextOption] = {}
+        for step in (*self.input_pipeline.steps, *self.response_pipeline.steps):
+            for option in await step.supported_request_context(timeout=timeout):
+                _merge_request_context_option(merged, option)
+        return merged
 
     async def run_input_pipeline(
         self, request: LLMRequest
@@ -67,3 +84,24 @@ class BrainForgeClient:
         """
         transaction.response = response
         return await self.response_pipeline.run(transaction)
+
+
+def _merge_request_context_option(
+    merged: Dict[str, RequestContextOption],
+    option: RequestContextOption,
+) -> None:
+    prior = merged.get(option.key)
+    if prior is None:
+        merged[option.key] = option
+        return
+    description = prior.description or option.description
+    if prior.values is None or option.values is None:
+        merged[option.key] = RequestContextOption(
+            option.key, None, description)
+        return
+    values = list(prior.values)
+    for value in option.values:
+        if value not in values:
+            values.append(value)
+    merged[option.key] = RequestContextOption(
+        option.key, values, description)

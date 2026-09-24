@@ -43,6 +43,9 @@ class TestStepBase:
         step = AppendQueryStep()
         assert repr(step) == "<AppendQueryStep id='append_query'>"
 
+    def test_default_request_context_options_are_empty(self):
+        assert list(AppendQueryStep().request_context_options) == []
+
     def test_default_applicable_runs_unconditionally(self):
         class DefaultResponse(ResponseStep):
             id = "default_response"

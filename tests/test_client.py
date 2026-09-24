@@ -20,7 +20,11 @@ from neon_data_models.models.api.llm import LLMResponse
 
 from brainforge_inference_utils.client import BrainForgeClient
 from brainforge_inference_utils.config import PipelineConfig
-from brainforge_inference_utils.steps.base import InputStep, ResponseStep
+from brainforge_inference_utils.steps.base import (
+    InputStep,
+    RequestContextOption,
+    ResponseStep,
+)
 from brainforge_inference_utils.transaction import UserTransaction
 from helpers import (
     PrefixResponseStep,
@@ -34,6 +38,35 @@ class RecordInputStep(InputStep):
 
     async def process(self, transaction: UserTransaction) -> None:
         transaction.input_context[self.id] = self.config["value"]
+
+
+class CatalogStep(InputStep):
+    id = "catalog"
+
+    async def process(self, transaction: UserTransaction) -> None:
+        return None
+
+    async def supported_request_context(self, timeout: float = 10.0):
+        return [
+            RequestContextOption(
+                "rag_providers",
+                list(self.config.get("providers") or []),
+            ),
+            RequestContextOption("location", ["Seattle"]),
+        ]
+
+
+class FlagStep(ResponseStep):
+    id = "flag"
+    request_context_options = (
+        RequestContextOption("citations_enabled", (True, False)),
+        RequestContextOption("location"),
+    )
+
+    async def process(
+        self, transaction: UserTransaction
+    ) -> Optional[LLMResponse]:
+        return None
 
 
 class RecordOutputStep(ResponseStep):
@@ -103,3 +136,29 @@ class TestBrainForgeClient(unittest.IsolatedAsyncioTestCase):
             transaction.output_context,
             {"record_output": {"citations": [1]}},
         )
+
+    async def test_supported_request_context_merges_pipeline_steps(self):
+        config = PipelineConfig.model_validate({
+            "input": [
+                {"id": "catalog", "config": {"providers": ["news", "docs"]}},
+                {"id": "record_input", "config": {"value": {}}},
+                {"id": "catalog", "config": {"providers": ["docs", "web"]}},
+            ],
+            "response": [{"id": "flag"}],
+        })
+        client = BrainForgeClient(
+            config,
+            {
+                CatalogStep.id: CatalogStep,
+                RecordInputStep.id: RecordInputStep,
+                FlagStep.id: FlagStep,
+            },
+        )
+
+        options = await client.supported_request_context()
+        self.assertEqual(
+            list(options["rag_providers"].values), ["news", "docs", "web"])
+        self.assertEqual(
+            list(options["citations_enabled"].values), [True, False])
+        self.assertIsNone(options["location"].values)
+        self.assertNotIn("record_input", options)

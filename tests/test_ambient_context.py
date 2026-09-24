@@ -199,3 +199,9 @@ class TestAmbientContextStep(unittest.IsolatedAsyncioTestCase):
             step._resolve_location(transaction),
             "Renton, WA, USA",
         )
+
+    async def test_supported_request_context_is_unconstrained(self):
+        step = AmbientContextStep(STEP_CONFIG)
+        options = await step.supported_request_context()
+        self.assertEqual([option.key for option in options], ["location", "client_ip"])
+        self.assertTrue(all(option.values is None for option in options))

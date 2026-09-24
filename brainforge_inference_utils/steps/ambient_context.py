@@ -31,7 +31,7 @@ import requests
 from neon_data_models.types import LlmMessageRole
 
 from brainforge_inference_utils.mcp import mcp_client, mcp_tool_inner_payload
-from brainforge_inference_utils.steps.base import InputStep
+from brainforge_inference_utils.steps.base import InputStep, RequestContextOption
 from brainforge_inference_utils.transaction import UserTransaction
 
 LOG = logging.getLogger(__name__)
@@ -54,6 +54,16 @@ class AmbientContextStep(InputStep):
     """
 
     id = "ambient_context"
+    request_context_options = (
+        RequestContextOption(
+            "location",
+            description="Pre-resolved location description (preferred when set).",
+        ),
+        RequestContextOption(
+            "client_ip",
+            description="Client IP used to resolve location via ip-api.com.",
+        ),
+    )
 
     def __init__(self, config: Optional[dict] = None) -> None:
         resolved = dict(config or {})
