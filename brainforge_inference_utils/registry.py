@@ -39,9 +39,8 @@ from __future__ import annotations
 
 import logging
 import re
-import warnings
 from importlib.metadata import entry_points
-from typing import Dict, Mapping, Type
+from typing import Dict, Type
 
 from brainforge_inference_utils.steps.base import Step
 
@@ -113,37 +112,3 @@ def load_entry_point_steps(
         LOG.debug("Loaded %s step %r from %s",
                   expected_type.__name__, entry_point.name, dist_name)
     return loaded
-
-
-def merge_builtin_and_entry_points(
-    builtin: Mapping[str, Type[Step]],
-    group: str,
-    expected_type: Type[Step],
-) -> Dict[str, Type[Step]]:
-    """
-    Combine a caller-supplied step map with classes discovered from `group`.
-
-    Deprecated. This package no longer ships built-in steps. Call
-    `load_entry_point_steps` instead. The `builtin` map is still copied and
-    then extended with the entry point group so existing callers keep working.
-
-    :param builtin: Caller-supplied id -> step class mapping.
-    :param group: Entry point group for this pipeline side.
-    :param expected_type: Step base class that group must provide.
-    :returns: A new mapping. `builtin` is copied, then plugin steps are added.
-    :raises ValueError: If a plugin id is already present in `builtin`.
-    """
-    warnings.warn(
-        "merge_builtin_and_entry_points is deprecated; this package no longer "
-        "ships built-in steps. Use load_entry_point_steps instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    resolved = dict(builtin)
-    for step_id, step_cls in load_entry_point_steps(group, expected_type).items():
-        if step_id in resolved:
-            raise ValueError(
-                f"Step id {step_id!r} from entry point group {group} conflicts "
-                f"with a built-in step")
-        resolved[step_id] = step_cls
-    return resolved

@@ -36,7 +36,6 @@ from brainforge_inference_utils.registry import (
     REQUEST_STEP_ENTRY_POINT,
     RESPONSE_STEP_ENTRY_POINT,
     load_entry_point_steps,
-    merge_builtin_and_entry_points,
 )
 from brainforge_inference_utils.steps.base import RequestStep, ResponseStep
 from helpers import FakeEntryPoint, entry_points_for
@@ -139,29 +138,4 @@ def test_response_class_in_request_group_raises(monkeypatch):
     )
     with pytest.raises(TypeError, match="not a RequestStep"):
         load_entry_point_steps(REQUEST_STEP_ENTRY_POINT, RequestStep)
-
-
-def test_merge_builtin_and_entry_points_is_deprecated(monkeypatch):
-    monkeypatch.setattr(
-        "brainforge_inference_utils.registry.entry_points",
-        entry_points_for([
-            FakeEntryPoint("acme.guard", AcmeRequestGuard, dist="acme-plugin"),
-        ]),
-    )
-
-    class CallerStep(RequestStep):
-        id = "test.caller"
-
-        async def process(self, transaction):
-            return None
-
-    with pytest.warns(DeprecationWarning, match="load_entry_point_steps"):
-        resolved = merge_builtin_and_entry_points(
-            {"test.caller": CallerStep},
-            REQUEST_STEP_ENTRY_POINT,
-            RequestStep,
-        )
-
-    assert resolved["test.caller"] is CallerStep
-    assert resolved["acme.guard"] is AcmeRequestGuard
 
