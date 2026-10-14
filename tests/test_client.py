@@ -29,9 +29,6 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
-from typing import Optional
-
-from neon_data_models.models.api.llm import LLMResponse
 
 from brainforge_inference_utils.client import BrainForgeClient
 from brainforge_inference_utils.config import PipelineConfig
@@ -78,20 +75,15 @@ class FlagStep(ResponseStep):
         RequestContextOption("location"),
     )
 
-    async def process(
-        self, transaction: UserTransaction
-    ) -> Optional[LLMResponse]:
+    async def process(self, transaction: UserTransaction) -> None:
         return None
 
 
 class RecordResponseStep(ResponseStep):
     id = "record_response"
 
-    async def process(
-        self, transaction: UserTransaction
-    ) -> Optional[LLMResponse]:
+    async def process(self, transaction: UserTransaction) -> None:
         transaction.response_step_context[self.id] = self.config["value"]
-        return None
 
 
 class TestBrainForgeClient(unittest.IsolatedAsyncioTestCase):

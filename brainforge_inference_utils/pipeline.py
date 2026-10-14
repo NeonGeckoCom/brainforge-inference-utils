@@ -101,8 +101,7 @@ class ResponsePipeline:
 
     async def run(self, transaction: UserTransaction) -> UserTransaction:
         """
-        Run every applicable response step, threading the (possibly replaced)
-        response back onto the transaction.
+        Run every applicable response step, mutating the transaction in place.
 
         :param transaction: The transaction whose response to shape.
         :returns: The same `transaction`.
@@ -112,9 +111,7 @@ class ResponsePipeline:
             if reason is not None:
                 LOG.debug("Skipping response step %r: %s", step.id, reason)
                 continue
-            revised = await step.process(transaction)
-            if revised is not None:
-                transaction.response = revised
+            await step.process(transaction)
         return transaction
 
 

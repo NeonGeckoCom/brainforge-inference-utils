@@ -158,7 +158,7 @@ class TestPipelineRun(unittest.IsolatedAsyncioTestCase):
         assert transaction.request.max_tokens == 512
         assert transaction.request.max_history == 7
 
-    async def test_response_steps_thread_returned_revisions(self):
+    async def test_response_steps_run_in_declared_order(self):
         pipeline = ResponsePipeline([
             PrefixResponseStep({"prefix": "["}),
             PrefixResponseStep({"prefix": "<"}),
@@ -168,7 +168,7 @@ class TestPipelineRun(unittest.IsolatedAsyncioTestCase):
         await pipeline.run(transaction)
         assert transaction.response.response == "<[ok"
 
-    async def test_response_step_none_keeps_in_place_mutation(self):
+    async def test_response_steps_mutate_the_same_response(self):
         pipeline = ResponsePipeline([
             MutateResponseInPlaceStep({"suffix": "!"}),
             PrefixResponseStep({"prefix": ">"}),

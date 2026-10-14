@@ -101,7 +101,7 @@ class AppendQueryStep(RequestStep):
 
 
 class PrefixResponseStep(ResponseStep):
-    """Response step that returns a copy with `config["prefix"]` prepended."""
+    """Response step that prepends `config["prefix"]` to the response."""
 
     id = "prefix_response"
 
@@ -110,20 +110,18 @@ class PrefixResponseStep(ResponseStep):
             return "no response"
         return None
 
-    async def process(self, transaction: UserTransaction) -> Optional[LLMResponse]:
-        current = transaction.response
+    async def process(self, transaction: UserTransaction) -> None:
         prefix = self.config.get("prefix", "")
-        return current.model_copy(update={"response": prefix + current.response})
+        transaction.response.response = prefix + transaction.response.response
 
 
 class MutateResponseInPlaceStep(ResponseStep):
-    """Response step that mutates `response.response` and returns None."""
+    """Response step that appends `config["suffix"]` to the response."""
 
     id = "mutate_in_place"
 
-    async def process(self, transaction: UserTransaction) -> Optional[LLMResponse]:
+    async def process(self, transaction: UserTransaction) -> None:
         transaction.response.response += self.config.get("suffix", "!")
-        return None
 
 
 TEST_STEPS = {

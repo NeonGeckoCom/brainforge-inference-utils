@@ -35,9 +35,9 @@ Two step types plug into the two pipelines:
 - `RequestStep` runs before generation. It shapes the request on the
   `UserTransaction` (RAG/MCP context, ambient context, request history
   validation, ...), mutating it in place.
-- `ResponseStep` runs after generation. It has the complete response on the
-  `UserTransaction` and may return a revised response (or mutate it in place) to
-  annotate or rewrite it (citations, sanitizing, guardrails, ...).
+- `ResponseStep` runs after generation. It shapes the response on the
+  `UserTransaction` (citations, sanitizing, guardrails, ...), mutating it
+  in place.
 
 Both share two conventions:
 
@@ -58,8 +58,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, ClassVar, List, Optional, Sequence
-
-from neon_data_models.models.api.llm import LLMResponse
 
 from brainforge_inference_utils.transaction import UserTransaction
 
@@ -167,9 +165,8 @@ class ResponseStep(Step, ABC):
     """
     A step that shapes the generated response.
 
-    Implementations read the response from `transaction.response` and either
-    mutate it in place or return a new `LLMResponse` to replace it. Returning
-    `None` leaves the current response unchanged.
+    Implementations mutate `transaction.response` in place (annotating or
+    rewriting it). They return nothing.
     """
 
     def applicable(self, transaction: UserTransaction) -> Optional[str]:
@@ -184,15 +181,14 @@ class ResponseStep(Step, ABC):
         return None
 
     @abstractmethod
-    async def process(self,
-                      transaction: UserTransaction) -> Optional[LLMResponse]:
+    async def process(self, transaction: UserTransaction) -> None:
         """
-        Annotate or rewrite the response.
+        Apply this step's effect to the response.
 
         Only called when `applicable(transaction)` returned `None`.
+        Implementations mutate `transaction.response` in place and return
+        nothing.
 
         :param transaction: The transaction whose `response` to shape.
-        :returns: A revised `LLMResponse` to replace the current one, or `None`
-            to keep it (including when the step mutated the response in place).
         """
         raise NotImplementedError
