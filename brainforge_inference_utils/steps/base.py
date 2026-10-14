@@ -75,7 +75,8 @@ class Step(ABC):
     should keep per-request state on the `UserTransaction`, not on `self`.
 
     :cvar id: Unique step identifier used in configuration. Subclasses must set
-        this to a stable, non-empty string.
+        this to a stable, non-empty string. Plugin steps use `author.step_name`
+        and that string must match the entry point name.
     :cvar request_context_options: Static `request_context` keys this step
         reads. Override `supported_request_context` when allowed values must be
         fetched live (for example a provider catalog).

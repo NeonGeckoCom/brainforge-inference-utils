@@ -35,7 +35,7 @@ response, and two per-side context dicts (`request_step_context` and
 | `RequestContextOption` | One `request_context` key a step reads, with optional allowed values for hosts to present. |
 | `RequestPipeline` / `ResponsePipeline` | Run an ordered list of steps over a transaction. |
 | `PipelineConfig` / `StepConfig` | Declarative, ordered step lists (see below). |
-| `build_pipelines(config)` | Build both pipelines from config, resolving step ids via `steps_by_id`. |
+| `build_pipelines(config)` | Build both pipelines from config. Bundled ids come from `steps_by_id`; plugin ids come from entry points. |
 
 ## Usage sketch
 
@@ -80,11 +80,55 @@ between calls.
   (e.g. a citation formatter and the sanitizer that strips it) belong in the
   same module and should derive from a shared constant so they cannot drift.
 
+## Step plugins
+
+Installed packages advertise steps with setuptools entry points. Request and
+response steps use different groups:
+
+| Pipeline | Entry point group |
+| --- | --- |
+| Request | `brainforge.inference.request_steps` |
+| Response | `brainforge.inference.response_steps` |
+
+Both groups use the step id `author.step_name`:
+
+- `author` is the plugin developer's slug (`acme`, `neon`).
+- `step_name` names that one step (`guardrails`, `rag`).
+
+Each part is lowercase letters, digits, and underscores, and starts with a
+letter. The class `id`, the config `id`, and the context-dict key are that
+same string.
+
+The same `author.step_name` may be registered once in each group. Each
+pipeline reads only its own group, so the request class and the response class
+stay distinct. Two packages registering the same name in one group is an
+error.
+
+```python
+entry_points={
+    "brainforge.inference.request_steps": [
+        "acme.guardrails=acme_guardrails:GuardrailRequestStep",
+    ],
+    "brainforge.inference.response_steps": [
+        "acme.guardrails=acme_guardrails:GuardrailResponseStep",
+    ],
+}
+```
+
+```yaml
+pipeline:
+  request:
+    - id: acme.guardrails
+  response:
+    - id: acme.guardrails
+```
+
+Bundled steps (`ambient_context`, `rag`, `request_history`, `citations`) are
+still resolved from `steps_by_id` in this package. They do not use
+`author.step_name` yet.
+
 ## Deferred
 
-- A step **registry** (in-process registration + entry-point discovery under
-  `brainforge.inference.steps`). For now, steps are resolved from the static
-  `steps_by_id` mapping.
 - A **services** adapter for streaming, tool calls, and token counting.
 - Richer persistent state or execution tracing beyond the transient
   `request_step_context` / `response_step_context` dicts on `UserTransaction`.

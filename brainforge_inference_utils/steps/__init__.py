@@ -15,9 +15,10 @@
 """
 Step base classes, first-party step implementations, and their id mapping.
 
-New steps subclass `RequestStep` or `ResponseStep`, set a unique `id`, and are
-added to `steps_by_id` below (mirroring `collectors_by_id` in
-`brainforge_dataset_utils`) so pipelines can resolve them by id.
+Bundled steps subclass `RequestStep` or `ResponseStep`, set a unique `id`, and
+are added to `steps_by_id` below so pipelines can resolve them by id. Plugin
+steps are discovered from entry points instead of this mapping. Their ids use
+`author.step_name`.
 """
 
 from __future__ import annotations

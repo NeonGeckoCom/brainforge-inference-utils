@@ -85,15 +85,15 @@ setup(
         "Intended Audience :: Developers",
         "Programming Language :: Python :: 3",
     ],
-    # Reserved for a future step registry: first-party and third-party steps
-    # will be advertised under this entry point group so pipelines can resolve
-    # them by id. Example:
+    # Plugin steps register under brainforge.inference.request_steps and
+    # brainforge.inference.response_steps. Entry point names are
+    # author.step_name. Bundled steps stay in steps_by_id for now.
     # entry_points={
-    #     "brainforge.inference.steps": [
-    #         "persona=brainforge_inference_utils.steps.persona:PersonaStep",
+    #     "brainforge.inference.request_steps": [
+    #         "acme.guardrails=acme_guardrails:GuardrailRequestStep",
+    #     ],
+    #     "brainforge.inference.response_steps": [
+    #         "acme.guardrails=acme_guardrails:GuardrailResponseStep",
     #     ],
     # },
-    entry_points={
-        "brainforge.inference.steps": [],
-    },
 )

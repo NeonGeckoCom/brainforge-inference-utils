@@ -32,6 +32,11 @@ import logging
 from typing import List, Mapping, Optional, Sequence, Tuple, Type
 
 from brainforge_inference_utils.config import PipelineConfig
+from brainforge_inference_utils.registry import (
+    REQUEST_STEP_ENTRY_POINT,
+    RESPONSE_STEP_ENTRY_POINT,
+    merge_builtin_and_entry_points,
+)
 from brainforge_inference_utils.steps import steps_by_id
 from brainforge_inference_utils.steps.base import (
     RequestStep,
@@ -115,26 +120,35 @@ def build_pipelines(
     """
     Instantiate both pipelines from configuration.
 
-    Step classes are looked up by id in `steps` (defaulting to the static
-    `steps_by_id` mapping) and validated against the pipeline they are declared
-    in, so a response step placed in the request list (or vice versa) fails fast
-    at build time.
+    Step classes are looked up by id in `steps` when that mapping is passed.
+    Otherwise each side uses `steps_by_id` plus the entry point group for that
+    pipeline (`brainforge.inference.request_steps` or
+    `brainforge.inference.response_steps`). A response step placed in the
+    request list (or vice versa) fails fast at build time.
 
     :param config: Parsed pipeline configuration.
-    :param steps: Optional id -> `Step` class mapping. Defaults to
-        `brainforge_inference_utils.steps.steps_by_id`.
+    :param steps: Optional id -> `Step` class mapping. When omitted, bundled
+        steps are combined with installed entry points.
     :returns: `(request_pipeline, response_pipeline)`.
-    :raises KeyError: If a configured step id is not present in `steps`.
+    :raises KeyError: If a configured step id is not present in the mapping
+        used for that side.
     :raises TypeError: If a configured step resolves to the wrong step type.
     """
-    steps = steps_by_id if steps is None else steps
+    if steps is None:
+        request_step_classes = merge_builtin_and_entry_points(
+            steps_by_id, REQUEST_STEP_ENTRY_POINT, RequestStep)
+        response_step_classes = merge_builtin_and_entry_points(
+            steps_by_id, RESPONSE_STEP_ENTRY_POINT, ResponseStep)
+    else:
+        request_step_classes = steps
+        response_step_classes = steps
 
     request_steps: List[RequestStep] = []
     for entry in config.request:
         if not entry.enabled:
             LOG.info("Request step %r disabled by config", entry.id)
             continue
-        cls = _resolve_step(entry.id, steps)
+        cls = _resolve_step(entry.id, request_step_classes)
         if not (isinstance(cls, type) and issubclass(cls, RequestStep)):
             raise TypeError(
                 f"Step {entry.id!r} is configured as a request step but "
@@ -146,7 +160,7 @@ def build_pipelines(
         if not entry.enabled:
             LOG.info("Response step %r disabled by config", entry.id)
             continue
-        cls = _resolve_step(entry.id, steps)
+        cls = _resolve_step(entry.id, response_step_classes)
         if not (isinstance(cls, type) and issubclass(cls, ResponseStep)):
             raise TypeError(
                 f"Step {entry.id!r} is configured as a response step but "

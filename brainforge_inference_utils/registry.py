@@ -1,0 +1,124 @@
+# Copyright (C) 2008-2026 Neongecko.com Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+Discovery of plugin steps via setuptools entry points.
+
+Request and response steps are registered in separate groups, so the same
+`author.step_name` id can exist on both sides. Bundled steps shipped in this
+package stay in `steps_by_id` and are merged with whichever group is loaded.
+"""
+
+from __future__ import annotations
+
+import logging
+import re
+from importlib.metadata import entry_points
+from typing import Dict, Mapping, Type
+
+from brainforge_inference_utils.steps.base import Step
+
+LOG = logging.getLogger(__name__)
+
+REQUEST_STEP_ENTRY_POINT = "brainforge.inference.request_steps"
+RESPONSE_STEP_ENTRY_POINT = "brainforge.inference.response_steps"
+
+# author.step_name — one developer slug, one step name.
+STEP_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$")
+
+
+def _distribution_name(entry_point) -> str:
+    dist = getattr(entry_point, "dist", None)
+    return getattr(dist, "name", None) or "unknown"
+
+
+def load_entry_point_steps(
+    group: str,
+    expected_type: Type[Step],
+) -> Dict[str, Type[Step]]:
+    """
+    Load step classes advertised under `group`.
+
+    Each entry point name must be `author.step_name` and must equal the
+    loaded class's `id`. Names must be unique within the group. The same name
+    may still be registered under the other pipeline's group.
+
+    :param group: Entry point group to read.
+    :param expected_type: `RequestStep` or `ResponseStep`. Loaded classes must
+        subclass it.
+    :returns: Entry point name -> step class.
+    :raises ValueError: If a name is malformed, duplicated, or differs from
+        the class `id`.
+    :raises TypeError: If a loaded object is not a subclass of `expected_type`.
+    """
+    seen: Dict[str, str] = {}
+    loaded: Dict[str, Type[Step]] = {}
+    for entry_point in entry_points(group=group):
+        dist_name = _distribution_name(entry_point)
+        if not STEP_ID_PATTERN.fullmatch(entry_point.name):
+            raise ValueError(
+                f"Entry point {entry_point.name!r} in {group} from "
+                f"{dist_name} must use the form author.step_name")
+        prior = seen.get(entry_point.name)
+        if prior is not None:
+            raise ValueError(
+                f"Multiple packages register {group} step "
+                f"{entry_point.name!r}: {prior} and {dist_name}")
+        seen[entry_point.name] = dist_name
+
+        try:
+            step_cls = entry_point.load()
+        except Exception as exc:
+            raise ImportError(
+                f"Failed to load step {entry_point.name!r} from {dist_name}"
+            ) from exc
+        if not (isinstance(step_cls, type) and issubclass(step_cls, expected_type)):
+            raise TypeError(
+                f"Entry point {entry_point.name!r} in {group} from {dist_name} "
+                f"loaded {getattr(step_cls, '__name__', step_cls)!r}, which is "
+                f"not a {expected_type.__name__}")
+        if step_cls.id != entry_point.name:
+            raise ValueError(
+                f"Step {step_cls.__name__} from {dist_name} has id "
+                f"{step_cls.id!r}, which does not match entry point "
+                f"{entry_point.name!r}")
+        loaded[entry_point.name] = step_cls
+        LOG.debug("Loaded %s step %r from %s",
+                  expected_type.__name__, entry_point.name, dist_name)
+    return loaded
+
+
+def merge_builtin_and_entry_points(
+    builtin: Mapping[str, Type[Step]],
+    group: str,
+    expected_type: Type[Step],
+) -> Dict[str, Type[Step]]:
+    """
+    Combine bundled steps with classes discovered from `group`.
+
+    :param builtin: In-package id -> step class mapping (`steps_by_id`).
+    :param group: Entry point group for this pipeline side.
+    :param expected_type: Step base class that group must provide.
+    :returns: A new mapping. `builtin` is copied unchanged, then plugin steps
+        are added.
+    :raises ValueError: If a plugin id is already present in `builtin`.
+    """
+    resolved = dict(builtin)
+    for step_id, step_cls in load_entry_point_steps(group, expected_type).items():
+        if step_id in resolved:
+            raise ValueError(
+                f"Step id {step_id!r} from entry point group {group} conflicts "
+                f"with a built-in step")
+        resolved[step_id] = step_cls
+    return resolved
