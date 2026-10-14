@@ -100,15 +100,4 @@ setup(
         "Intended Audience :: Developers",
         "Programming Language :: Python :: 3",
     ],
-    # Plugin steps register under brainforge.inference.request_steps and
-    # brainforge.inference.response_steps. Entry point names are
-    # author.step_name. This package registers no steps of its own.
-    # entry_points={
-    #     "brainforge.inference.request_steps": [
-    #         "acme.guardrails=acme_guardrails:GuardrailRequestStep",
-    #     ],
-    #     "brainforge.inference.response_steps": [
-    #         "acme.guardrails=acme_guardrails:GuardrailResponseStep",
-    #     ],
-    # },
 )
