@@ -9,15 +9,15 @@ safety guardrails, ...) can be implemented as **steps** that plug into one of
 two pipelines:
 
 - **Request pipeline** — runs before generation and shapes the request:
-  injecting ambient time/weather, retrieving RAG for host-selected
-  providers, then validating and truncating history last.
+  injecting informational context, RAG retrieval for host-selected
+  providers, validating and truncating history, etc.
 - **Response pipeline** — runs after generation and shapes the response:
-  citation rewrite via `ResponseParser`, sanitizing, guardrails, etc.
+  citation rewrite, sanitization, guardrails, etc.
 
 Primary generation stays with the host, between the two pipelines. The host
 keeps the `UserTransaction` from the request pipeline until the response is
-ready. A response step may call a configured OpenAI-compatible endpoint
-(for example citation rewrite) without the host owning that second request.
+ready. A pipeline step may call an inference endpoint to modify the transaction
+(for example citation rewrite) without the host owning those requests.
 
 Both pipelines operate on a `UserTransaction`, which carries the request,
 response, and two per-side context dicts (`request_step_context` and
@@ -35,7 +35,6 @@ response, and two per-side context dicts (`request_step_context` and
 | `RequestContextOption` | One `request_context` key a step reads, with optional allowed values for hosts to present. |
 | `RequestPipeline` / `ResponsePipeline` | Run an ordered list of steps over a transaction. |
 | `PipelineConfig` / `StepConfig` | Declarative, ordered step lists (see below). |
-| `build_pipelines(config)` | Build both pipelines from config. Step classes come from the entry point group for that pipeline. |
 
 ## Usage sketch
 
@@ -61,7 +60,7 @@ between calls.
 
 - **Steps are independently defensive.** There is no dependency graph between
   steps. A step that needs something it does not find (e.g. a citation step with
-  no retrieved context) reports itself inapplicable via `applicable()` and is
+  no retrieved sources) reports itself inapplicable via `applicable()` and is
   skipped with a logged reason, rather than failing the pipeline.
 - **Ordering is explicit.** Step order is exactly the order declared in
   configuration; the pipeline does not reorder.
@@ -73,9 +72,10 @@ between calls.
   A repeated step on the *same* side shares that key; a step id on the request
   side does not clash with the same id on the response side. Each step is
   responsible for how it stores and reads its own data across one or more
-  calls (for example appending to a list instead of overwriting a scalar).
+  calls (for example appending to a list instead of overwriting it).
   Response steps that consume request-step data should read
-  `transaction.request_step_context` and skip when nothing usable is present.
+  `transaction.request_step_context` and report inapplicable when required 
+  context is absent.
 - **Format contracts live together.** Steps that share a parse format
   (e.g. a citation formatter and the sanitizer that strips it) belong in the
   same module and should derive from a shared constant so they cannot drift.
@@ -123,18 +123,3 @@ pipeline:
     - id: acme.guardrails
 ```
 
-First-party steps ship in their own packages:
-
-| Package | Steps |
-| --- | --- |
-| `brainforge-inference-plugin-locale` | `brainforge.locale` |
-| `brainforge-inference-plugin-rag` | `brainforge.rag`, `brainforge.citations` |
-| `brainforge-inference-plugin-history` | `brainforge.history` |
-
-This package does not register those steps. Install the plugin to use the id.
-
-## Deferred
-
-- A **services** adapter for streaming, tool calls, and token counting.
-- Richer persistent state or execution tracing beyond the transient
-  `request_step_context` / `response_step_context` dicts on `UserTransaction`.
