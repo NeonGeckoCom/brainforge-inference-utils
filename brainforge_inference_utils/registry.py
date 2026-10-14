@@ -49,8 +49,8 @@ LOG = logging.getLogger(__name__)
 REQUEST_STEP_ENTRY_POINT = "brainforge.inference.request_steps"
 RESPONSE_STEP_ENTRY_POINT = "brainforge.inference.response_steps"
 
-# author.step_name — one developer slug, one step name.
-STEP_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$")
+# author.step_name — letters, digits, hyphens, and underscores in each part.
+STEP_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$")
 
 
 def _distribution_name(entry_point) -> str:
@@ -66,8 +66,9 @@ def load_entry_point_steps(
     Load step classes advertised under `group`.
 
     Each entry point name must be `author.step_name` and must equal the
-    loaded class's `id`. Names must be unique within the group. The same name
-    may still be registered under the other pipeline's group.
+    loaded class's `id`. Each part may contain letters, digits, hyphens, and
+    underscores. Names must be unique within the group. The same name may
+    still be registered under the other pipeline's group.
 
     :param group: Entry point group to read.
     :param expected_type: `RequestStep` or `ResponseStep`. Loaded classes must

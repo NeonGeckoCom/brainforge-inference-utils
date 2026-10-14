@@ -101,6 +101,21 @@ def test_build_pipelines_resolves_entry_point_steps(monkeypatch):
     assert type(response_pipeline.steps[0]) is AcmeResponseGuard
 
 
+def test_entry_point_name_allows_alphanumerics_hyphen_and_underscore(monkeypatch):
+    class MixedName(RequestStep):
+        id = "Acme-corp.step_name-2"
+
+        async def process(self, transaction):
+            return None
+
+    monkeypatch.setattr(
+        "brainforge_inference_utils.registry.entry_points",
+        entry_points_for([FakeEntryPoint(MixedName.id, MixedName)]),
+    )
+    loaded = load_entry_point_steps(REQUEST_STEP_ENTRY_POINT, RequestStep)
+    assert loaded[MixedName.id] is MixedName
+
+
 def test_entry_point_name_must_be_author_step_name(monkeypatch):
     monkeypatch.setattr(
         "brainforge_inference_utils.registry.entry_points",

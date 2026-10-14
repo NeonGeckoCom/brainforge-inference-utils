@@ -95,9 +95,8 @@ Both groups use the step id `author.step_name`:
 - `author` is the plugin developer's slug (`acme`, `brainforge`).
 - `step_name` names that one step (`guardrails`, `rag`).
 
-Each part is lowercase letters, digits, and underscores, and starts with a
-letter. The class `id`, the config `id`, and the context-dict key are that
-same string.
+Each part may contain letters, digits, hyphens, and underscores. The class
+`id`, the config `id`, and the context-dict key are that same string.
 
 The same `author.step_name` may be registered once in each group. Each
 pipeline reads only its own group, so the request class and the response class
