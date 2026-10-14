@@ -15,7 +15,7 @@
 """
 RAG retrieval and citation rewrite.
 
-`RagStep` lists providers and injects retrieved documents on the input
+`RagStep` lists providers and injects retrieved documents on the request
 pipeline. `ResponseParser` (id `citations`) runs on the response pipeline:
 it filters those documents, builds a citation completion via MCP, POSTs it
 to a configured OpenAI-compatible endpoint, and writes the annotated text
@@ -34,7 +34,7 @@ from neon_data_models.models.api.llm import LLMResponse
 
 from brainforge_inference_utils.mcp import mcp_client, mcp_tool_content_parts
 from brainforge_inference_utils.steps.base import (
-    InputStep,
+    RequestStep,
     RequestContextOption,
     ResponseStep,
 )
@@ -43,7 +43,7 @@ from brainforge_inference_utils.transaction import UserTransaction
 LOG = logging.getLogger(__name__)
 
 
-class RagStep(InputStep):
+class RagStep(RequestStep):
     """
     Look up selected RAG providers and prepend retrieved context.
 
@@ -137,7 +137,7 @@ class RagStep(InputStep):
         except Exception as exc:
             LOG.warning("Skipping RAG lookup for %s: %s", providers, exc)
             step_context["error"] = str(exc)
-            transaction.input_context[self.id] = step_context
+            transaction.request_step_context[self.id] = step_context
             return
 
         step_context["documents"] = documents
@@ -146,7 +146,7 @@ class RagStep(InputStep):
                 [self._information_message(documents)]
                 + list(transaction.request.history)
             )
-        transaction.input_context[self.id] = step_context
+        transaction.request_step_context[self.id] = step_context
 
     async def _lookup_rag(
         self,
@@ -232,7 +232,7 @@ def apply_citation_markup(
 
 class ResponseParser(ResponseStep):
     """
-    Rewrite the generated response with citations using RAG input-context.
+    Rewrite the generated response with citations using RAG request-step context.
 
     The whole MCP filter → citation completion → markup path runs here so the
     host does not handle a second request/response pair.
@@ -276,7 +276,7 @@ class ResponseParser(ResponseStep):
             return "openai_url not configured"
         if transaction.request_context.get("citations_enabled") is False:
             return "citations disabled"
-        documents = (transaction.input_context.get("rag") or {}).get(
+        documents = (transaction.request_step_context.get("rag") or {}).get(
             "documents") or []
         if not documents:
             return "no rag documents"
@@ -286,13 +286,13 @@ class ResponseParser(ResponseStep):
         self, transaction: UserTransaction
     ) -> Optional[LLMResponse]:
         documents = list(
-            (transaction.input_context.get("rag") or {}).get("documents") or [])
+            (transaction.request_step_context.get("rag") or {}).get("documents") or [])
         original = transaction.response.response
         timeout = float(self.config["timeout"])
         try:
             filtered = await self._filter_sources(original, documents, timeout)
             if not filtered:
-                transaction.output_context[self.id] = {
+                transaction.response_step_context[self.id] = {
                     "documents": [],
                     "credits": "",
                     "formatted_credits": "",
@@ -306,13 +306,13 @@ class ResponseParser(ResponseStep):
                 raw_cited, filtered)
         except Exception as exc:
             LOG.warning("Skipping citation rewrite: %s", exc)
-            transaction.output_context[self.id] = {
+            transaction.response_step_context[self.id] = {
                 "documents": documents,
                 "error": str(exc),
             }
             return None
 
-        transaction.output_context[self.id] = {
+        transaction.response_step_context[self.id] = {
             "documents": filtered,
             "unique_citations": unique,
             "credits": credits,

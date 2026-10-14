@@ -19,7 +19,7 @@ import pytest
 
 from brainforge_inference_utils.config import PipelineConfig
 from brainforge_inference_utils.pipeline import (
-    InputPipeline,
+    RequestPipeline,
     ResponsePipeline,
     build_pipelines,
 )
@@ -38,9 +38,9 @@ from helpers import (
 
 class TestBuildPipelines:
     def test_empty_config_builds_empty_pipelines(self):
-        input_pipeline, response_pipeline = build_pipelines(
+        request_pipeline, response_pipeline = build_pipelines(
             PipelineConfig(), TEST_STEPS)
-        assert input_pipeline.steps == []
+        assert request_pipeline.steps == []
         assert response_pipeline.steps == []
 
     def test_default_mapping_includes_first_party_steps(self):
@@ -48,12 +48,12 @@ class TestBuildPipelines:
         assert "rag" in steps_by_id
         assert "citations" in steps_by_id
         assert "request_history" in steps_by_id
-        input_pipeline, response_pipeline = build_pipelines(
+        request_pipeline, response_pipeline = build_pipelines(
             PipelineConfig.model_validate({
-                "input": ["ambient_context", "rag", "request_history"],
+                "request": ["ambient_context", "rag", "request_history"],
                 "response": ["citations"],
             }))
-        assert [step.id for step in input_pipeline.steps] == [
+        assert [step.id for step in request_pipeline.steps] == [
             "ambient_context",
             "rag",
             "request_history",
@@ -62,20 +62,20 @@ class TestBuildPipelines:
 
         with pytest.raises(KeyError, match="append_query"):
             build_pipelines(PipelineConfig.model_validate({
-                "input": ["append_query"],
+                "request": ["append_query"],
             }))
 
     def test_unknown_id_lists_known_steps(self):
         with pytest.raises(KeyError, match="append_query"):
             build_pipelines(
-                PipelineConfig.model_validate({"input": ["nope"]}),
+                PipelineConfig.model_validate({"request": ["nope"]}),
                 TEST_STEPS,
             )
 
     def test_disabled_steps_are_omitted(self):
-        input_pipeline, response_pipeline = build_pipelines(
+        request_pipeline, response_pipeline = build_pipelines(
             PipelineConfig.model_validate({
-                "input": [
+                "request": [
                     {"id": "append_query", "enabled": False,
                      "config": {"suffix": " skipped"}},
                     {"id": "append_query", "config": {"suffix": " kept"}},
@@ -87,19 +87,19 @@ class TestBuildPipelines:
             }),
             TEST_STEPS,
         )
-        assert len(input_pipeline.steps) == 1
-        assert input_pipeline.steps[0].config == {"suffix": " kept"}
+        assert len(request_pipeline.steps) == 1
+        assert request_pipeline.steps[0].config == {"suffix": " kept"}
         assert response_pipeline.steps == []
 
-    def test_response_step_in_input_list_raises(self):
-        with pytest.raises(TypeError, match="not an InputStep"):
+    def test_response_step_in_request_list_raises(self):
+        with pytest.raises(TypeError, match="not a RequestStep"):
             build_pipelines(
                 PipelineConfig.model_validate({
-                    "input": ["prefix_response"]}),
+                    "request": ["prefix_response"]}),
                 TEST_STEPS,
             )
 
-    def test_input_step_in_response_list_raises(self):
+    def test_request_step_in_response_list_raises(self):
         with pytest.raises(TypeError, match="not a ResponseStep"):
             build_pipelines(
                 PipelineConfig.model_validate(
@@ -108,9 +108,9 @@ class TestBuildPipelines:
             )
 
     def test_duplicate_ids_instantiate_independent_instances(self):
-        input_pipeline, response_pipeline = build_pipelines(
+        request_pipeline, response_pipeline = build_pipelines(
             PipelineConfig.model_validate({
-                "input": [
+                "request": [
                     {"id": "append_query", "config": {"suffix": " A"}},
                     {"id": "append_query", "config": {"suffix": " B"}},
                 ],
@@ -121,13 +121,13 @@ class TestBuildPipelines:
             }),
             TEST_STEPS,
         )
-        assert len(input_pipeline.steps) == 2
-        assert input_pipeline.steps[0] is not input_pipeline.steps[1]
-        assert [type(step) for step in input_pipeline.steps] == [
+        assert len(request_pipeline.steps) == 2
+        assert request_pipeline.steps[0] is not request_pipeline.steps[1]
+        assert [type(step) for step in request_pipeline.steps] == [
             AppendQueryStep,
             AppendQueryStep,
         ]
-        assert [step.config for step in input_pipeline.steps] == [
+        assert [step.config for step in request_pipeline.steps] == [
             {"suffix": " A"},
             {"suffix": " B"},
         ]
@@ -138,8 +138,8 @@ class TestBuildPipelines:
 
 
 class TestPipelineRun(unittest.IsolatedAsyncioTestCase):
-    async def test_input_steps_run_in_declared_order(self):
-        pipeline = InputPipeline([
+    async def test_request_steps_run_in_declared_order(self):
+        pipeline = RequestPipeline([
             AppendQueryStep({"suffix": " A"}),
             AppendQueryStep({"suffix": " B"}),
         ])
@@ -148,8 +148,8 @@ class TestPipelineRun(unittest.IsolatedAsyncioTestCase):
         assert result is transaction
         assert transaction.request.query == "hello A B"
 
-    async def test_inapplicable_input_step_is_skipped(self):
-        pipeline = InputPipeline([
+    async def test_inapplicable_request_step_is_skipped(self):
+        pipeline = RequestPipeline([
             SkipUnlessQueryStep({"query": "other", "max_tokens": 64}),
             SetMaxHistoryStep({"max_history": 7}),
         ])
@@ -188,9 +188,9 @@ class TestPipelineRun(unittest.IsolatedAsyncioTestCase):
         assert transaction.response is None
 
     async def test_build_then_run_duplicate_configured_steps(self):
-        input_pipeline, response_pipeline = build_pipelines(
+        request_pipeline, response_pipeline = build_pipelines(
             PipelineConfig.model_validate({
-                "input": [
+                "request": [
                     {"id": "append_query", "config": {"suffix": " A"}},
                     {"id": "skip_unless_query",
                      "config": {"query": "nope", "max_tokens": 64}},
@@ -205,7 +205,7 @@ class TestPipelineRun(unittest.IsolatedAsyncioTestCase):
             TEST_STEPS,
         )
         transaction = make_transaction(query="hello")
-        await input_pipeline.run(transaction)
+        await request_pipeline.run(transaction)
         assert transaction.request.query == "hello A B"
         assert transaction.request.max_tokens == 512
 

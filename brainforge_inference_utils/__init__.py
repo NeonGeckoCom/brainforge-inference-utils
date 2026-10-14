@@ -25,13 +25,13 @@ from brainforge_inference_utils.version import __version__
 from brainforge_inference_utils.client import BrainForgeClient
 from brainforge_inference_utils.config import PipelineConfig, StepConfig
 from brainforge_inference_utils.pipeline import (
-    InputPipeline,
+    RequestPipeline,
     ResponsePipeline,
     build_pipelines,
 )
 from brainforge_inference_utils.steps import steps_by_id
 from brainforge_inference_utils.steps.base import (
-    InputStep,
+    RequestStep,
     RequestContextOption,
     ResponseStep,
     Step,
@@ -49,12 +49,12 @@ __all__ = [
     "UserTransaction",
     # Steps
     "Step",
-    "InputStep",
+    "RequestStep",
     "ResponseStep",
     "RequestContextOption",
     "steps_by_id",
     # Pipelines
-    "InputPipeline",
+    "RequestPipeline",
     "ResponsePipeline",
     "build_pipelines",
     # Config

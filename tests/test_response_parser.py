@@ -56,7 +56,7 @@ class TestResponseParser(unittest.IsolatedAsyncioTestCase):
             request=request,
             response=make_response(text, request),
             request_context=request_context,
-            input_context={"rag": {"documents": DOCUMENTS}},
+            request_step_context={"rag": {"documents": DOCUMENTS}},
         )
         return transaction
 
@@ -82,7 +82,7 @@ class TestResponseParser(unittest.IsolatedAsyncioTestCase):
         self.assertNotEqual(revised.response, "See the docs.")
         self.assertEqual(revised.history[-1][0], "llm")
         self.assertEqual(revised.history[-1][1], revised.response)
-        self.assertIn("Doc A", transaction.output_context["citations"]["credits"])
+        self.assertIn("Doc A", transaction.response_step_context["citations"]["credits"])
 
     async def test_skips_without_rag_documents(self):
         step = ResponseParser(STEP_CONFIG)
@@ -121,7 +121,7 @@ class TestResponseParser(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(revised)
         self.assertEqual(transaction.response.response, original)
         self.assertEqual(
-            transaction.output_context["citations"]["error"], "nope")
+            transaction.response_step_context["citations"]["error"], "nope")
 
     def test_appends_chat_completions_to_base_url(self):
         step = ResponseParser({

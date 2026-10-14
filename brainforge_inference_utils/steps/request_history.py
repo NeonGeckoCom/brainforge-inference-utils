@@ -19,7 +19,7 @@ Guarantee `LLMRequest.history` is valid, including truncation.
 the incoming query (on `request.query`). Roles are `information` /
 `instruction` / `tool` context, then complete `user`/`llm` pairs.
 
-This step is meant to run last on the input pipeline so earlier steps can
+This step is meant to run last on the request pipeline so earlier steps can
 prepend context freely. It repairs rather than skipping: unknown or empty
 messages are dropped, prior citation markup is stripped, `assistant` becomes
 `llm`, a trailing user turn that duplicates `query` is removed, then
@@ -33,7 +33,7 @@ from typing import Any, List, Optional, Sequence, Tuple
 
 from neon_data_models.types import LlmMessageRole
 
-from brainforge_inference_utils.steps.base import InputStep, RequestContextOption
+from brainforge_inference_utils.steps.base import RequestStep, RequestContextOption
 from brainforge_inference_utils.transaction import UserTransaction
 
 # Matches `[[n](url)]` written by `ResponseParser.apply_citation_markup`.
@@ -49,7 +49,7 @@ def remove_citation_strings(text: str) -> str:
     return _CITATION_MARKUP.sub("", text)
 
 
-class RequestHistoryStep(InputStep):
+class RequestHistoryStep(RequestStep):
     """
     Normalize, truncate, and order `request.history` into a valid LLM history.
 
@@ -92,7 +92,7 @@ class RequestHistoryStep(InputStep):
 
         transaction.request.history = list(context_messages) + list(windowed_turns)
         transaction.request.max_history = max_history
-        transaction.input_context[self.id] = {
+        transaction.request_step_context[self.id] = {
             "conversational": conversational,
             "max_history": max_history,
             "kept_turns": len(windowed_turns),

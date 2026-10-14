@@ -15,7 +15,7 @@
 """
 Pipeline configuration schema.
 
-Configuration is two explicitly ordered lists of step entries: `input` and
+Configuration is two explicitly ordered lists of step entries: `request` and
 `response`. Order is authoritative; the pipeline runs steps in exactly the
 order given and does not reorder. Each entry names a step `id` (resolved via the
 `steps_by_id` mapping) and optionally carries step-specific `config`.
@@ -23,7 +23,7 @@ order given and does not reorder. Each entry names a step `id` (resolved via the
 Example (YAML)::
 
     pipeline:
-      input:
+      request:
         - id: ambient_context
           config:
             mcp_url: https://mcp.neonaiservices2.com/mcp
@@ -76,13 +76,13 @@ class StepConfig(BaseModel):
 
 class PipelineConfig(BaseModel):
     """
-    Ordered step lists for the input and response pipelines.
+    Ordered step lists for the request and response pipelines.
 
-    :param input: Ordered `InputStep` entries, run before generation.
+    :param request: Ordered `RequestStep` entries, run before generation.
     :param response: Ordered `ResponseStep` entries, run after generation.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    input: List[StepConfig] = Field(default_factory=list)
+    request: List[StepConfig] = Field(default_factory=list)
     response: List[StepConfig] = Field(default_factory=list)

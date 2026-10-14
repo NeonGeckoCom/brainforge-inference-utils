@@ -67,7 +67,7 @@ with open(
 setup(
     name="brainforge-inference-utils",
     version=version,
-    description="Pluggable input/response pipelines for BrainForge LLM inference",
+    description="Pluggable request/response pipelines for BrainForge LLM inference",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/NeonGeckoCom/brainforge-inference-utils",

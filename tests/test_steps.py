@@ -17,7 +17,7 @@ from abc import ABC
 
 import pytest
 
-from brainforge_inference_utils.steps.base import InputStep, ResponseStep
+from brainforge_inference_utils.steps.base import RequestStep, ResponseStep
 from helpers import (
     AppendQueryStep,
     make_transaction,
@@ -57,9 +57,9 @@ class TestStepBase:
         assert DefaultResponse().applicable(make_transaction()) is None
 
     def test_abstract_bases_cannot_be_instantiated(self):
-        assert issubclass(InputStep, ABC)
+        assert issubclass(RequestStep, ABC)
         assert issubclass(ResponseStep, ABC)
         with pytest.raises(TypeError):
-            InputStep()
+            RequestStep()
         with pytest.raises(TypeError):
             ResponseStep()

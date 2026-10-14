@@ -54,12 +54,12 @@ class TestStepConfig:
 class TestPipelineConfig:
     def test_defaults_to_empty_lists(self):
         parsed = PipelineConfig()
-        assert parsed.input == []
+        assert parsed.request == []
         assert parsed.response == []
 
     def test_mixed_shorthand_and_mapping_entries(self):
         parsed = PipelineConfig.model_validate({
-            "input": [
+            "request": [
                 "persona",
                 {"id": "rag", "config": {"top_k": 10}},
             ],
@@ -67,13 +67,13 @@ class TestPipelineConfig:
                 {"id": "citations"},
             ],
         })
-        assert [entry.id for entry in parsed.input] == ["persona", "rag"]
-        assert parsed.input[1].config == {"top_k": 10}
+        assert [entry.id for entry in parsed.request] == ["persona", "rag"]
+        assert parsed.request[1].config == {"top_k": 10}
         assert parsed.response[0].id == "citations"
 
     def test_duplicate_step_ids_are_allowed_with_distinct_configs(self):
         parsed = PipelineConfig.model_validate({
-            "input": [
+            "request": [
                 {"id": "append_query", "config": {"suffix": " A"}},
                 {"id": "append_query", "config": {"suffix": " B"}},
             ],
@@ -82,11 +82,11 @@ class TestPipelineConfig:
                 {"id": "prefix_response", "config": {"prefix": "<"}},
             ],
         })
-        assert [entry.id for entry in parsed.input] == [
+        assert [entry.id for entry in parsed.request] == [
             "append_query",
             "append_query",
         ]
-        assert [entry.config for entry in parsed.input] == [
+        assert [entry.config for entry in parsed.request] == [
             {"suffix": " A"},
             {"suffix": " B"},
         ]
@@ -97,19 +97,19 @@ class TestPipelineConfig:
 
     def test_duplicate_identical_entries_are_allowed(self):
         parsed = PipelineConfig.model_validate({
-            "input": ["sanitize", "sanitize"],
+            "request": ["sanitize", "sanitize"],
         })
-        assert [entry.id for entry in parsed.input] == ["sanitize", "sanitize"]
+        assert [entry.id for entry in parsed.request] == ["sanitize", "sanitize"]
 
     def test_empty_lists_are_valid(self):
-        parsed = PipelineConfig.model_validate({"input": [], "response": []})
-        assert parsed.input == []
+        parsed = PipelineConfig.model_validate({"request": [], "response": []})
+        assert parsed.request == []
         assert parsed.response == []
 
     def test_extra_fields_are_forbidden(self):
         with pytest.raises(ValidationError):
-            PipelineConfig.model_validate({"input": [], "chunk": []})
+            PipelineConfig.model_validate({"request": [], "chunk": []})
 
     def test_invalid_entry_type_is_rejected(self):
         with pytest.raises(ValidationError):
-            PipelineConfig.model_validate({"input": [123]})
+            PipelineConfig.model_validate({"request": [123]})

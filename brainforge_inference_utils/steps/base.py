@@ -17,7 +17,7 @@ Step base classes.
 
 Two step types plug into the two pipelines:
 
-- `InputStep` runs before generation. It shapes the request on the
+- `RequestStep` runs before generation. It shapes the request on the
   `UserTransaction` (RAG/MCP context, ambient context, request history
   validation, ...), mutating it in place.
 - `ResponseStep` runs after generation. It has the complete response on the
@@ -34,8 +34,8 @@ Both share two conventions:
 
 2. **Shared object, separate namespaces.** Data that must pass between steps
    travels on the `UserTransaction`, not through a step-to-step interface.
-   Input steps use `transaction.input_context`; response steps use
-   `transaction.output_context`. Step ids are unique only within one side.
+   Request steps use `transaction.request_step_context`; response steps use
+   `transaction.response_step_context`. Step ids are unique only within one side.
 """
 
 from __future__ import annotations
@@ -109,7 +109,7 @@ class Step(ABC):
         return list(self.request_context_options)
 
 
-class InputStep(Step, ABC):
+class RequestStep(Step, ABC):
     """
     A step that shapes the request before generation.
 

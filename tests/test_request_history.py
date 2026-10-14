@@ -45,9 +45,9 @@ class TestRequestHistoryStep(unittest.IsolatedAsyncioTestCase):
         ])
         self.assertEqual(transaction.request.max_history, 2)
         self.assertEqual(
-            transaction.input_context["request_history"]["dropped_turns"], 2)
+            transaction.request_step_context["request_history"]["dropped_turns"], 2)
         self.assertEqual(
-            transaction.input_context["request_history"]["kept_turns"], 4)
+            transaction.request_step_context["request_history"]["kept_turns"], 4)
 
     async def test_preserves_context_messages_outside_the_window(self):
         step = RequestHistoryStep({"max_history": 2})
@@ -87,7 +87,7 @@ class TestRequestHistoryStep(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(transaction.request.history, [("information", "rag")])
         self.assertEqual(transaction.request.max_history, 0)
-        ctx = transaction.input_context["request_history"]
+        ctx = transaction.request_step_context["request_history"]
         self.assertFalse(ctx["conversational"])
         self.assertEqual(ctx["dropped_turns"], 4)
 
@@ -100,7 +100,7 @@ class TestRequestHistoryStep(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(transaction.request.history, history)
         self.assertEqual(
-            transaction.input_context["request_history"]["dropped_turns"], 0)
+            transaction.request_step_context["request_history"]["dropped_turns"], 0)
 
     async def test_drops_system_empty_and_duplicate_query(self):
         step = RequestHistoryStep({"max_history": 2})

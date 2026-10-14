@@ -12,10 +12,10 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-"""Configured runner for the input and response pipelines.
+"""Configured runner for the request and response pipelines.
 
 `BrainForgeClient` does not call an LLM. The host runs inference between
-`run_input_pipeline` and `run_output_pipeline`, and is responsible for keeping
+`run_request_pipeline` and `run_response_pipeline`, and is responsible for keeping
 the returned `UserTransaction` until the response is ready.
 """
 
@@ -40,7 +40,7 @@ class BrainForgeClient:
         steps: Optional[Mapping[str, Type[Step]]] = None,
     ):
         self.config = config
-        self.input_pipeline, self.response_pipeline = build_pipelines(
+        self.request_pipeline, self.response_pipeline = build_pipelines(
             config, steps)
 
     async def supported_request_context(
@@ -55,32 +55,32 @@ class BrainForgeClient:
         (`values is None`) the merged option is unconstrained.
         """
         merged: Dict[str, RequestContextOption] = {}
-        for step in (*self.input_pipeline.steps, *self.response_pipeline.steps):
+        for step in (*self.request_pipeline.steps, *self.response_pipeline.steps):
             for option in await step.supported_request_context(timeout=timeout):
                 _merge_request_context_option(merged, option)
         return merged
 
-    async def run_input_pipeline(
+    async def run_request_pipeline(
         self, request: LLMRequest
     ) -> UserTransaction:
         """
         Shape `request` and collect step context on a new transaction.
 
         The caller must hold the returned transaction until
-        `run_output_pipeline` (or drop it if the response pipeline is unused).
+        `run_response_pipeline` (or drop it if the response pipeline is unused).
         """
         transaction = UserTransaction(request=request)
-        return await self.input_pipeline.run(transaction)
+        return await self.request_pipeline.run(transaction)
 
-    async def run_output_pipeline(
+    async def run_response_pipeline(
         self, transaction: UserTransaction, response: LLMResponse
     ) -> UserTransaction:
         """
         Attach `response` to `transaction` and run the response pipeline.
 
-        Input-step context is on `transaction.input_context`; response steps
-        write to `transaction.output_context`. The caller must pass through
-        the transaction from `run_input_pipeline`.
+        Request-step context is on `transaction.request_step_context`; response steps
+        write to `transaction.response_step_context`. The caller must pass through
+        the transaction from `run_request_pipeline`.
         """
         transaction.response = response
         return await self.response_pipeline.run(transaction)

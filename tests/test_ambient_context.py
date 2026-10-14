@@ -72,7 +72,7 @@ class TestAmbientContextStep(unittest.IsolatedAsyncioTestCase):
             ("llm", "hey"),
         ])
         self.assertEqual(
-            transaction.input_context["ambient_context"]["location"],
+            transaction.request_step_context["ambient_context"]["location"],
             "Seattle, WA, USA",
         )
 
@@ -155,7 +155,7 @@ class TestAmbientContextStep(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(transaction.request.history, original_history)
         self.assertEqual(
-            transaction.input_context["ambient_context"],
+            transaction.request_step_context["ambient_context"],
             {"location": "Denver, CO, USA", "error": "timed out"},
         )
 

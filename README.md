@@ -8,32 +8,32 @@ injection, request history validation, citations, response sanitizing,
 safety guardrails, ...) can be implemented as **steps** that plug into one of
 two pipelines:
 
-- **Input pipeline** — runs before generation and shapes the request:
+- **Request pipeline** — runs before generation and shapes the request:
   injecting ambient time/weather, retrieving RAG for host-selected
   providers, then validating and truncating history last.
 - **Response pipeline** — runs after generation and shapes the response:
   citation rewrite via `ResponseParser`, sanitizing, guardrails, etc.
 
 Primary generation stays with the host, between the two pipelines. The host
-keeps the `UserTransaction` from the input pipeline until the response is
+keeps the `UserTransaction` from the request pipeline until the response is
 ready. A response step may call a configured OpenAI-compatible endpoint
 (for example citation rewrite) without the host owning that second request.
 
 Both pipelines operate on a `UserTransaction`, which carries the request,
-response, and two per-side context dicts (`input_context` and
-`output_context`). Requests and responses use the existing
+response, and two per-side context dicts (`request_step_context` and
+`response_step_context`). Requests and responses use the existing
 `neon-data-models` models (`LLMRequest` / `LLMResponse`).
 
 ## Concepts
 
 | Concept | Purpose |
 | --- | --- |
-| `UserTransaction` | The request/response pair plus `input_context` / `output_context` dicts. The host holds this object across generation. |
-| `BrainForgeClient` | Builds pipelines from config and exposes `run_input_pipeline` / `run_output_pipeline` / `supported_request_context`. |
-| `InputStep` | Shapes `transaction.request` before generation. Declares supported `request_context` keys/values. |
+| `UserTransaction` | The request/response pair plus `request_step_context` / `response_step_context` dicts. The host holds this object across generation. |
+| `BrainForgeClient` | Builds pipelines from config and exposes `run_request_pipeline` / `run_response_pipeline` / `supported_request_context`. |
+| `RequestStep` | Shapes `transaction.request` before generation. Declares supported `request_context` keys/values. |
 | `ResponseStep` | Annotates/rewrites `transaction.response` after generation. |
 | `RequestContextOption` | One `request_context` key a step reads, with optional allowed values for hosts to present. |
-| `InputPipeline` / `ResponsePipeline` | Run an ordered list of steps over a transaction. |
+| `RequestPipeline` / `ResponsePipeline` | Run an ordered list of steps over a transaction. |
 | `PipelineConfig` / `StepConfig` | Declarative, ordered step lists (see below). |
 | `build_pipelines(config)` | Build both pipelines from config, resolving step ids via `steps_by_id`. |
 
@@ -45,13 +45,13 @@ client = BrainForgeClient(pipeline_config)
 options = await client.supported_request_context()
 # e.g. options["rag_providers"].values, options["conversational"].values
 
-transaction = await client.run_input_pipeline(llm_request)
+transaction = await client.run_request_pipeline(llm_request)
 # host performs generation using transaction.request
-transaction = await client.run_output_pipeline(transaction, llm_response)
+transaction = await client.run_response_pipeline(transaction, llm_response)
 ```
 
-Input steps write `transaction.input_context[step.id]`. Response steps write
-`transaction.output_context[step.id]` and may *read* the input dict. Those
+Request steps write `transaction.request_step_context[step.id]`. Response steps write
+`transaction.response_step_context[step.id]` and may *read* the request-step context. Those
 namespaces are independent, so the same step id may exist on both sides
 without colliding. Context is available across generation only because the
 same `UserTransaction` is passed back in; this package does not store it
@@ -70,13 +70,13 @@ between calls.
   instance and runs in declared order. The pipeline does not merge or
   de-duplicate entries.
 - **Steps own their context.** Each side has its own dict keyed by step id.
-  A repeated step on the *same* side shares that key; a step id on the input
-  side does not clash with the same id on the output side. Each step is
+  A repeated step on the *same* side shares that key; a step id on the request
+  side does not clash with the same id on the response side. Each step is
   responsible for how it stores and reads its own data across one or more
   calls (for example appending to a list instead of overwriting a scalar).
-  Response steps that consume input-step data should read
-  `transaction.input_context` and skip when nothing usable is present.
-- **Format contracts live together.** Steps that share an output/parse format
+  Response steps that consume request-step data should read
+  `transaction.request_step_context` and skip when nothing usable is present.
+- **Format contracts live together.** Steps that share a parse format
   (e.g. a citation formatter and the sanitizer that strips it) belong in the
   same module and should derive from a shared constant so they cannot drift.
 
@@ -87,4 +87,4 @@ between calls.
   `steps_by_id` mapping.
 - A **services** adapter for streaming, tool calls, and token counting.
 - Richer persistent state or execution tracing beyond the transient
-  `input_context` / `output_context` dicts on `UserTransaction`.
+  `request_step_context` / `response_step_context` dicts on `UserTransaction`.

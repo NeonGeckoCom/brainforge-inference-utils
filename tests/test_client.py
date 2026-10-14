@@ -21,7 +21,7 @@ from neon_data_models.models.api.llm import LLMResponse
 from brainforge_inference_utils.client import BrainForgeClient
 from brainforge_inference_utils.config import PipelineConfig
 from brainforge_inference_utils.steps.base import (
-    InputStep,
+    RequestStep,
     RequestContextOption,
     ResponseStep,
 )
@@ -33,14 +33,14 @@ from helpers import (
 )
 
 
-class RecordInputStep(InputStep):
-    id = "record_input"
+class RecordRequestStep(RequestStep):
+    id = "record_request"
 
     async def process(self, transaction: UserTransaction) -> None:
-        transaction.input_context[self.id] = self.config["value"]
+        transaction.request_step_context[self.id] = self.config["value"]
 
 
-class CatalogStep(InputStep):
+class CatalogStep(RequestStep):
     id = "catalog"
 
     async def process(self, transaction: UserTransaction) -> None:
@@ -69,21 +69,21 @@ class FlagStep(ResponseStep):
         return None
 
 
-class RecordOutputStep(ResponseStep):
-    id = "record_output"
+class RecordResponseStep(ResponseStep):
+    id = "record_response"
 
     async def process(
         self, transaction: UserTransaction
     ) -> Optional[LLMResponse]:
-        transaction.output_context[self.id] = self.config["value"]
+        transaction.response_step_context[self.id] = self.config["value"]
         return None
 
 
 class TestBrainForgeClient(unittest.IsolatedAsyncioTestCase):
     def make_client(self):
         config = PipelineConfig.model_validate({
-            "input": [{
-                "id": "record_input",
+            "request": [{
+                "id": "record_request",
                 "config": {"value": {"documents": ["one"]}},
             }],
             "response": [
@@ -92,7 +92,7 @@ class TestBrainForgeClient(unittest.IsolatedAsyncioTestCase):
                     "config": {"prefix": "processed: "},
                 },
                 {
-                    "id": "record_output",
+                    "id": "record_response",
                     "config": {"value": {"citations": [1]}},
                 },
             ],
@@ -100,48 +100,48 @@ class TestBrainForgeClient(unittest.IsolatedAsyncioTestCase):
         return BrainForgeClient(
             config,
             {
-                RecordInputStep.id: RecordInputStep,
-                RecordOutputStep.id: RecordOutputStep,
+                RecordRequestStep.id: RecordRequestStep,
+                RecordResponseStep.id: RecordResponseStep,
                 PrefixResponseStep.id: PrefixResponseStep,
             },
         )
 
-    async def test_run_input_pipeline_returns_transaction_with_context(self):
+    async def test_run_request_pipeline_returns_transaction_with_context(self):
         client = self.make_client()
         request = make_request()
-        transaction = await client.run_input_pipeline(request)
+        transaction = await client.run_request_pipeline(request)
 
         self.assertIs(transaction.request, request)
         self.assertIsNone(transaction.response)
         self.assertEqual(
-            transaction.input_context,
-            {"record_input": {"documents": ["one"]}},
+            transaction.request_step_context,
+            {"record_request": {"documents": ["one"]}},
         )
-        self.assertEqual(transaction.output_context, {})
+        self.assertEqual(transaction.response_step_context, {})
 
-    async def test_run_output_pipeline_keeps_separate_step_namespaces(self):
+    async def test_run_response_pipeline_keeps_separate_step_namespaces(self):
         client = self.make_client()
-        transaction = await client.run_input_pipeline(make_request())
+        transaction = await client.run_request_pipeline(make_request())
         response = make_response("answer", transaction.request)
 
-        result = await client.run_output_pipeline(transaction, response)
+        result = await client.run_response_pipeline(transaction, response)
 
         self.assertIs(result, transaction)
         self.assertEqual(transaction.response.response, "processed: answer")
         self.assertEqual(
-            transaction.input_context,
-            {"record_input": {"documents": ["one"]}},
+            transaction.request_step_context,
+            {"record_request": {"documents": ["one"]}},
         )
         self.assertEqual(
-            transaction.output_context,
-            {"record_output": {"citations": [1]}},
+            transaction.response_step_context,
+            {"record_response": {"citations": [1]}},
         )
 
     async def test_supported_request_context_merges_pipeline_steps(self):
         config = PipelineConfig.model_validate({
-            "input": [
+            "request": [
                 {"id": "catalog", "config": {"providers": ["news", "docs"]}},
-                {"id": "record_input", "config": {"value": {}}},
+                {"id": "record_request", "config": {"value": {}}},
                 {"id": "catalog", "config": {"providers": ["docs", "web"]}},
             ],
             "response": [{"id": "flag"}],
@@ -150,7 +150,7 @@ class TestBrainForgeClient(unittest.IsolatedAsyncioTestCase):
             config,
             {
                 CatalogStep.id: CatalogStep,
-                RecordInputStep.id: RecordInputStep,
+                RecordRequestStep.id: RecordRequestStep,
                 FlagStep.id: FlagStep,
             },
         )
@@ -161,4 +161,4 @@ class TestBrainForgeClient(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             list(options["citations_enabled"].values), [True, False])
         self.assertIsNone(options["location"].values)
-        self.assertNotIn("record_input", options)
+        self.assertNotIn("record_request", options)

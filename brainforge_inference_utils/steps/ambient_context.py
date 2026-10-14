@@ -31,13 +31,13 @@ import requests
 from neon_data_models.types import LlmMessageRole
 
 from brainforge_inference_utils.mcp import mcp_client, mcp_tool_inner_payload
-from brainforge_inference_utils.steps.base import InputStep, RequestContextOption
+from brainforge_inference_utils.steps.base import RequestStep, RequestContextOption
 from brainforge_inference_utils.transaction import UserTransaction
 
 LOG = logging.getLogger(__name__)
 
 
-class AmbientContextStep(InputStep):
+class AmbientContextStep(RequestStep):
     """
     Prepend time and weather `information` messages to `request.history`.
 
@@ -90,7 +90,7 @@ class AmbientContextStep(InputStep):
         except Exception as exc:
             LOG.warning("Skipping ambient context for %r: %s", location, exc)
             step_context["error"] = str(exc)
-            transaction.input_context[self.id] = step_context
+            transaction.request_step_context[self.id] = step_context
             return
 
         messages = self._build_information_messages(
@@ -103,7 +103,7 @@ class AmbientContextStep(InputStep):
             "weather": weather_str,
             "messages": [content for _, content in messages],
         })
-        transaction.input_context[self.id] = step_context
+        transaction.request_step_context[self.id] = step_context
 
     def _resolve_location(self, transaction: UserTransaction) -> str:
         ctx = transaction.request_context

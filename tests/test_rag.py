@@ -59,9 +59,9 @@ class TestRagStep(unittest.IsolatedAsyncioTestCase):
         self.assertIn("https://b: chunk two", transaction.request.history[0][1])
         self.assertEqual(transaction.request.history[1], ("user", "hi"))
         self.assertEqual(
-            transaction.input_context["rag"]["documents"], DOCUMENTS)
+            transaction.request_step_context["rag"]["documents"], DOCUMENTS)
         self.assertEqual(
-            transaction.input_context["rag"]["providers"], ["news"])
+            transaction.request_step_context["rag"]["providers"], ["news"])
 
     async def test_uses_request_top_k_override(self):
         step = RagStep(STEP_CONFIG)
@@ -78,7 +78,7 @@ class TestRagStep(unittest.IsolatedAsyncioTestCase):
         lookup.assert_awaited_once_with(
             transaction.request.query, ["docs"], 3, STEP_CONFIG["timeout"])
         self.assertEqual(transaction.request.history, make_request().history)
-        self.assertEqual(transaction.input_context["rag"]["documents"], [])
+        self.assertEqual(transaction.request_step_context["rag"]["documents"], [])
 
     async def test_lookup_failure_leaves_history_unchanged(self):
         step = RagStep(STEP_CONFIG)
@@ -97,7 +97,7 @@ class TestRagStep(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(transaction.request.history, original)
         self.assertEqual(
-            transaction.input_context["rag"]["error"], "timed out")
+            transaction.request_step_context["rag"]["error"], "timed out")
 
     def test_skips_when_no_providers_selected(self):
         step = RagStep(STEP_CONFIG)

@@ -21,7 +21,7 @@ from neon_data_models.models.api.llm import (
     LLMResponse,
 )
 
-from brainforge_inference_utils.steps.base import InputStep, ResponseStep
+from brainforge_inference_utils.steps.base import RequestStep, ResponseStep
 from brainforge_inference_utils.transaction import UserTransaction
 
 
@@ -53,8 +53,8 @@ def make_transaction(response: Optional[LLMResponse] = None,
     return UserTransaction(request=request, response=response)
 
 
-class SetMaxHistoryStep(InputStep):
-    """Input step that writes `config["max_history"]` onto the request."""
+class SetMaxHistoryStep(RequestStep):
+    """Request step that writes `config["max_history"]` onto the request."""
 
     id = "set_max_history"
 
@@ -62,8 +62,8 @@ class SetMaxHistoryStep(InputStep):
         transaction.request.max_history = self.config["max_history"]
 
 
-class SkipUnlessQueryStep(InputStep):
-    """Input step skipped unless `request.query` matches `config["query"]`."""
+class SkipUnlessQueryStep(RequestStep):
+    """Request step skipped unless `request.query` matches `config["query"]`."""
 
     id = "skip_unless_query"
 
@@ -77,8 +77,8 @@ class SkipUnlessQueryStep(InputStep):
         transaction.request.max_tokens = self.config.get("max_tokens", 256)
 
 
-class AppendQueryStep(InputStep):
-    """Input step that appends `config["suffix"]` to `request.query`."""
+class AppendQueryStep(RequestStep):
+    """Request step that appends `config["suffix"]` to `request.query`."""
 
     id = "append_query"
 

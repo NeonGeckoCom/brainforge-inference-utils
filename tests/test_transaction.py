@@ -46,14 +46,14 @@ class TestUserTransaction:
     def test_pipeline_context_defaults_to_independent_dicts(self):
         first = UserTransaction(request=make_request())
         second = UserTransaction(request=make_request())
-        first.input_context["rag"] = {"documents": ["document"]}
-        first.output_context["citations"] = {"markers": [1]}
-        assert second.input_context == {}
-        assert second.output_context == {}
+        first.request_step_context["rag"] = {"documents": ["document"]}
+        first.response_step_context["citations"] = {"markers": [1]}
+        assert second.request_step_context == {}
+        assert second.response_step_context == {}
 
-    def test_input_and_output_step_ids_do_not_share_a_namespace(self):
+    def test_request_and_response_step_ids_do_not_share_a_namespace(self):
         transaction = UserTransaction(request=make_request())
-        transaction.input_context["shared_id"] = {"from": "input"}
-        transaction.output_context["shared_id"] = {"from": "output"}
-        assert transaction.input_context["shared_id"] == {"from": "input"}
-        assert transaction.output_context["shared_id"] == {"from": "output"}
+        transaction.request_step_context["shared_id"] = {"from": "request"}
+        transaction.response_step_context["shared_id"] = {"from": "response"}
+        assert transaction.request_step_context["shared_id"] == {"from": "request"}
+        assert transaction.response_step_context["shared_id"] == {"from": "response"}
