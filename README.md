@@ -123,9 +123,15 @@ pipeline:
     - id: acme.guardrails
 ```
 
-Bundled steps (`ambient_context`, `rag`, `request_history`, `citations`) are
-still resolved from `steps_by_id` in this package. They do not use
-`author.step_name` yet.
+First-party steps ship in their own packages:
+
+| Package | Steps |
+| --- | --- |
+| `neon-inference-plugin-locale` | `neon.locale` |
+| `neon-inference-plugin-rag` | `neon.rag`, `neon.citations` |
+| `neon-inference-plugin-history` | `neon.history` |
+
+This package does not register those steps. Install the plugin to use the id.
 
 ## Deferred
 

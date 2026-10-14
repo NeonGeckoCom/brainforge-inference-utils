@@ -25,15 +25,15 @@ Example (YAML)::
 
     pipeline:
       request:
-        - id: ambient_context
+        - id: neon.locale
           config:
             mcp_url: https://mcp.neonaiservices2.com/mcp
             default_location: Renton, WA, USA
             timeout: 5.0
-        - {id: rag, config: {mcp_url: https://mcp.neonaiservices2.com/mcp, top_k: 10}}
-        - request_history                          # last: valid, truncated history
+        - {id: neon.rag, config: {mcp_url: https://mcp.neonaiservices2.com/mcp, top_k: 10}}
+        - neon.history                             # last: valid, truncated history
       response:
-        - id: citations
+        - id: neon.citations
           config:
             mcp_url: https://mcp.neonaiservices2.com/mcp
             openai_url: https://hana.example/brainforge/openai/chat/completions

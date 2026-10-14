@@ -88,7 +88,7 @@ def test_same_author_step_name_loads_from_both_groups(monkeypatch):
     assert response_steps["acme.guard"] is AcmeResponseGuard
 
 
-def test_build_pipelines_resolves_plugins_and_builtin_steps(monkeypatch):
+def test_build_pipelines_resolves_entry_point_steps(monkeypatch):
     monkeypatch.setattr(
         "brainforge_inference_utils.registry.entry_points",
         _entry_points_for(
@@ -99,20 +99,14 @@ def test_build_pipelines_resolves_plugins_and_builtin_steps(monkeypatch):
 
     request_pipeline, response_pipeline = build_pipelines(
         PipelineConfig.model_validate({
-            "request": ["ambient_context", "acme.guard"],
-            "response": ["citations", "acme.guard"],
+            "request": ["acme.guard"],
+            "response": ["acme.guard"],
         }))
 
-    assert [step.id for step in request_pipeline.steps] == [
-        "ambient_context",
-        "acme.guard",
-    ]
-    assert [step.id for step in response_pipeline.steps] == [
-        "citations",
-        "acme.guard",
-    ]
-    assert type(request_pipeline.steps[1]) is AcmeRequestGuard
-    assert type(response_pipeline.steps[1]) is AcmeResponseGuard
+    assert [step.id for step in request_pipeline.steps] == ["acme.guard"]
+    assert [step.id for step in response_pipeline.steps] == ["acme.guard"]
+    assert type(request_pipeline.steps[0]) is AcmeRequestGuard
+    assert type(response_pipeline.steps[0]) is AcmeResponseGuard
 
 
 def test_explicit_step_map_skips_entry_points(monkeypatch):

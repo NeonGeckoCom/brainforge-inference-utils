@@ -43,23 +43,8 @@ class TestBuildPipelines:
         assert request_pipeline.steps == []
         assert response_pipeline.steps == []
 
-    def test_default_mapping_includes_first_party_steps(self):
-        assert "ambient_context" in steps_by_id
-        assert "rag" in steps_by_id
-        assert "citations" in steps_by_id
-        assert "request_history" in steps_by_id
-        request_pipeline, response_pipeline = build_pipelines(
-            PipelineConfig.model_validate({
-                "request": ["ambient_context", "rag", "request_history"],
-                "response": ["citations"],
-            }))
-        assert [step.id for step in request_pipeline.steps] == [
-            "ambient_context",
-            "rag",
-            "request_history",
-        ]
-        assert [step.id for step in response_pipeline.steps] == ["citations"]
-
+    def test_default_registry_has_no_bundled_steps(self):
+        assert steps_by_id == {}
         with pytest.raises(KeyError, match="append_query"):
             build_pipelines(PipelineConfig.model_validate({
                 "request": ["append_query"],

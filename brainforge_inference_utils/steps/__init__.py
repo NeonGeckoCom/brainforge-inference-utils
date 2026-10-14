@@ -13,43 +13,30 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-Step base classes, first-party step implementations, and their id mapping.
+Step base classes.
 
-Bundled steps subclass `RequestStep` or `ResponseStep`, set a unique `id`, and
-are added to `steps_by_id` below so pipelines can resolve them by id. Plugin
-steps are discovered from entry points instead of this mapping. Their ids use
-`author.step_name`.
+Concrete steps ship in separate plugins and are discovered from entry points.
+`steps_by_id` remains for any steps still bundled with this package. Plugin
+step ids use `author.step_name`.
 """
 
 from __future__ import annotations
 
 from typing import Dict, Type
 
-from brainforge_inference_utils.steps.ambient_context import AmbientContextStep
 from brainforge_inference_utils.steps.base import (
     RequestStep,
     RequestContextOption,
     ResponseStep,
     Step,
 )
-from brainforge_inference_utils.steps.rag import RagStep, ResponseParser
-from brainforge_inference_utils.steps.request_history import RequestHistoryStep
 
-steps_by_id: Dict[str, Type[Step]] = {
-    AmbientContextStep.id: AmbientContextStep,
-    RagStep.id: RagStep,
-    ResponseParser.id: ResponseParser,
-    RequestHistoryStep.id: RequestHistoryStep,
-}
+steps_by_id: Dict[str, Type[Step]] = {}
 
 __all__ = [
     "Step",
     "RequestStep",
     "ResponseStep",
     "RequestContextOption",
-    "AmbientContextStep",
-    "RagStep",
-    "ResponseParser",
-    "RequestHistoryStep",
     "steps_by_id",
 ]
