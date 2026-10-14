@@ -29,6 +29,7 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
+from unittest.mock import patch
 
 import pytest
 
@@ -38,88 +39,101 @@ from brainforge_inference_utils.pipeline import (
     ResponsePipeline,
     build_pipelines,
 )
-from brainforge_inference_utils.steps import steps_by_id
 from helpers import (
     AppendQueryStep,
     MutateResponseInPlaceStep,
     PrefixResponseStep,
     SetMaxHistoryStep,
     SkipUnlessQueryStep,
-    TEST_STEPS,
+    entry_points_for_steps,
     make_response,
     make_transaction,
 )
 
 
+def _patch_test_steps(monkeypatch):
+    monkeypatch.setattr(
+        "brainforge_inference_utils.registry.entry_points",
+        entry_points_for_steps(
+            AppendQueryStep,
+            SkipUnlessQueryStep,
+            PrefixResponseStep,
+            MutateResponseInPlaceStep,
+        ),
+    )
+
+
 class TestBuildPipelines:
-    def test_empty_config_builds_empty_pipelines(self):
-        request_pipeline, response_pipeline = build_pipelines(
-            PipelineConfig(), TEST_STEPS)
+    def test_empty_config_builds_empty_pipelines(self, monkeypatch):
+        _patch_test_steps(monkeypatch)
+        request_pipeline, response_pipeline = build_pipelines(PipelineConfig())
         assert request_pipeline.steps == []
         assert response_pipeline.steps == []
 
-    def test_default_registry_has_no_bundled_steps(self):
-        assert steps_by_id == {}
-        with pytest.raises(KeyError, match="append_query"):
+    def test_unregistered_id_raises(self, monkeypatch):
+        _patch_test_steps(monkeypatch)
+        with pytest.raises(KeyError, match="test.missing"):
             build_pipelines(PipelineConfig.model_validate({
-                "request": ["append_query"],
+                "request": ["test.missing"],
             }))
 
-    def test_unknown_id_lists_known_steps(self):
-        with pytest.raises(KeyError, match="append_query"):
+    def test_unknown_id_lists_known_steps(self, monkeypatch):
+        _patch_test_steps(monkeypatch)
+        with pytest.raises(KeyError, match="test.append_query"):
             build_pipelines(
-                PipelineConfig.model_validate({"request": ["nope"]}),
-                TEST_STEPS,
+                PipelineConfig.model_validate({"request": ["test.missing"]}),
             )
 
-    def test_disabled_steps_are_omitted(self):
+    def test_disabled_steps_are_omitted(self, monkeypatch):
+        _patch_test_steps(monkeypatch)
         request_pipeline, response_pipeline = build_pipelines(
             PipelineConfig.model_validate({
                 "request": [
-                    {"id": "append_query", "enabled": False,
+                    {"id": "test.append_query", "enabled": False,
                      "config": {"suffix": " skipped"}},
-                    {"id": "append_query", "config": {"suffix": " kept"}},
+                    {"id": "test.append_query", "config": {"suffix": " kept"}},
                 ],
                 "response": [
-                    {"id": "prefix_response", "enabled": False,
+                    {"id": "test.prefix_response", "enabled": False,
                      "config": {"prefix": "X"}},
                 ],
             }),
-            TEST_STEPS,
         )
         assert len(request_pipeline.steps) == 1
         assert request_pipeline.steps[0].config == {"suffix": " kept"}
         assert response_pipeline.steps == []
 
-    def test_response_step_in_request_list_raises(self):
-        with pytest.raises(TypeError, match="not a RequestStep"):
+    def test_response_step_id_is_unknown_on_the_request_pipeline(
+            self, monkeypatch):
+        _patch_test_steps(monkeypatch)
+        with pytest.raises(KeyError, match="test.prefix_response"):
             build_pipelines(
                 PipelineConfig.model_validate({
-                    "request": ["prefix_response"]}),
-                TEST_STEPS,
+                    "request": ["test.prefix_response"]}),
             )
 
-    def test_request_step_in_response_list_raises(self):
-        with pytest.raises(TypeError, match="not a ResponseStep"):
+    def test_request_step_id_is_unknown_on_the_response_pipeline(
+            self, monkeypatch):
+        _patch_test_steps(monkeypatch)
+        with pytest.raises(KeyError, match="test.append_query"):
             build_pipelines(
                 PipelineConfig.model_validate(
-                    {"response": ["append_query"]}),
-                TEST_STEPS,
+                    {"response": ["test.append_query"]}),
             )
 
-    def test_duplicate_ids_instantiate_independent_instances(self):
+    def test_duplicate_ids_instantiate_independent_instances(self, monkeypatch):
+        _patch_test_steps(monkeypatch)
         request_pipeline, response_pipeline = build_pipelines(
             PipelineConfig.model_validate({
                 "request": [
-                    {"id": "append_query", "config": {"suffix": " A"}},
-                    {"id": "append_query", "config": {"suffix": " B"}},
+                    {"id": "test.append_query", "config": {"suffix": " A"}},
+                    {"id": "test.append_query", "config": {"suffix": " B"}},
                 ],
                 "response": [
-                    {"id": "prefix_response", "config": {"prefix": "["}},
-                    {"id": "prefix_response", "config": {"prefix": "<"}},
+                    {"id": "test.prefix_response", "config": {"prefix": "["}},
+                    {"id": "test.prefix_response", "config": {"prefix": "<"}},
                 ],
             }),
-            TEST_STEPS,
         )
         assert len(request_pipeline.steps) == 2
         assert request_pipeline.steps[0] is not request_pipeline.steps[1]
@@ -188,22 +202,30 @@ class TestPipelineRun(unittest.IsolatedAsyncioTestCase):
         assert transaction.response is None
 
     async def test_build_then_run_duplicate_configured_steps(self):
-        request_pipeline, response_pipeline = build_pipelines(
-            PipelineConfig.model_validate({
-                "request": [
-                    {"id": "append_query", "config": {"suffix": " A"}},
-                    {"id": "skip_unless_query",
-                     "config": {"query": "nope", "max_tokens": 64}},
-                    {"id": "append_query", "config": {"suffix": " B"}},
-                ],
-                "response": [
-                    {"id": "prefix_response", "config": {"prefix": "["}},
-                    {"id": "mutate_in_place", "config": {"suffix": "!"}},
-                    {"id": "prefix_response", "config": {"prefix": "<"}},
-                ],
-            }),
-            TEST_STEPS,
-        )
+        with patch(
+            "brainforge_inference_utils.registry.entry_points",
+            entry_points_for_steps(
+                AppendQueryStep,
+                SkipUnlessQueryStep,
+                PrefixResponseStep,
+                MutateResponseInPlaceStep,
+            ),
+        ):
+            request_pipeline, response_pipeline = build_pipelines(
+                PipelineConfig.model_validate({
+                    "request": [
+                        {"id": "test.append_query", "config": {"suffix": " A"}},
+                        {"id": "test.skip_unless_query",
+                         "config": {"query": "nope", "max_tokens": 64}},
+                        {"id": "test.append_query", "config": {"suffix": " B"}},
+                    ],
+                    "response": [
+                        {"id": "test.prefix_response", "config": {"prefix": "["}},
+                        {"id": "test.mutate_in_place", "config": {"suffix": "!"}},
+                        {"id": "test.prefix_response", "config": {"prefix": "<"}},
+                    ],
+                }),
+            )
         transaction = make_transaction(query="hello")
         await request_pipeline.run(transaction)
         assert transaction.request.query == "hello A B"

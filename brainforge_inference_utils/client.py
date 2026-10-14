@@ -36,27 +36,22 @@ the returned `UserTransaction` until the response is ready.
 
 from __future__ import annotations
 
-from typing import Dict, Mapping, Optional, Type
+from typing import Dict
 
 from neon_data_models.models.api.llm import LLMRequest, LLMResponse
 
 from brainforge_inference_utils.config import PipelineConfig
 from brainforge_inference_utils.pipeline import build_pipelines
-from brainforge_inference_utils.steps.base import RequestContextOption, Step
+from brainforge_inference_utils.steps.base import RequestContextOption
 from brainforge_inference_utils.transaction import UserTransaction
 
 
 class BrainForgeClient:
     """Build pipelines from config and run them around host-owned inference."""
 
-    def __init__(
-        self,
-        config: PipelineConfig,
-        steps: Optional[Mapping[str, Type[Step]]] = None,
-    ):
+    def __init__(self, config: PipelineConfig):
         self.config = config
-        self.request_pipeline, self.response_pipeline = build_pipelines(
-            config, steps)
+        self.request_pipeline, self.response_pipeline = build_pipelines(config)
 
     async def supported_request_context(
         self, timeout: float = 10.0

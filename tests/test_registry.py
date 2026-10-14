@@ -28,8 +28,6 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from types import SimpleNamespace
-
 import pytest
 
 from brainforge_inference_utils.config import PipelineConfig
@@ -38,19 +36,10 @@ from brainforge_inference_utils.registry import (
     REQUEST_STEP_ENTRY_POINT,
     RESPONSE_STEP_ENTRY_POINT,
     load_entry_point_steps,
+    merge_builtin_and_entry_points,
 )
 from brainforge_inference_utils.steps.base import RequestStep, ResponseStep
-from helpers import TEST_STEPS
-
-
-class _EntryPoint:
-    def __init__(self, name, cls, dist="acme-plugin"):
-        self.name = name
-        self._cls = cls
-        self.dist = SimpleNamespace(name=dist)
-
-    def load(self):
-        return self._cls
+from helpers import FakeEntryPoint, entry_points_for
 
 
 class AcmeRequestGuard(RequestStep):
@@ -74,23 +63,12 @@ class MismatchedId(RequestStep):
         return None
 
 
-def _entry_points_for(request_points=(), response_points=()):
-    def fake_entry_points(group):
-        if group == REQUEST_STEP_ENTRY_POINT:
-            return list(request_points)
-        if group == RESPONSE_STEP_ENTRY_POINT:
-            return list(response_points)
-        return []
-
-    return fake_entry_points
-
-
 def test_same_author_step_name_loads_from_both_groups(monkeypatch):
     monkeypatch.setattr(
         "brainforge_inference_utils.registry.entry_points",
-        _entry_points_for(
-            [_EntryPoint("acme.guard", AcmeRequestGuard)],
-            [_EntryPoint("acme.guard", AcmeResponseGuard, dist="acme-plugin")],
+        entry_points_for(
+            [FakeEntryPoint("acme.guard", AcmeRequestGuard)],
+            [FakeEntryPoint("acme.guard", AcmeResponseGuard, dist="acme-plugin")],
         ),
     )
 
@@ -106,9 +84,9 @@ def test_same_author_step_name_loads_from_both_groups(monkeypatch):
 def test_build_pipelines_resolves_entry_point_steps(monkeypatch):
     monkeypatch.setattr(
         "brainforge_inference_utils.registry.entry_points",
-        _entry_points_for(
-            [_EntryPoint("acme.guard", AcmeRequestGuard)],
-            [_EntryPoint("acme.guard", AcmeResponseGuard)],
+        entry_points_for(
+            [FakeEntryPoint("acme.guard", AcmeRequestGuard)],
+            [FakeEntryPoint("acme.guard", AcmeResponseGuard)],
         ),
     )
 
@@ -124,29 +102,10 @@ def test_build_pipelines_resolves_entry_point_steps(monkeypatch):
     assert type(response_pipeline.steps[0]) is AcmeResponseGuard
 
 
-def test_explicit_step_map_skips_entry_points(monkeypatch):
-    def fail_entry_points(group):
-        raise AssertionError(f"entry points consulted for {group}")
-
-    monkeypatch.setattr(
-        "brainforge_inference_utils.registry.entry_points",
-        fail_entry_points,
-    )
-    request_pipeline, response_pipeline = build_pipelines(
-        PipelineConfig.model_validate({
-            "request": ["append_query"],
-            "response": ["prefix_response"],
-        }),
-        TEST_STEPS,
-    )
-    assert [step.id for step in request_pipeline.steps] == ["append_query"]
-    assert [step.id for step in response_pipeline.steps] == ["prefix_response"]
-
-
 def test_entry_point_name_must_be_author_step_name(monkeypatch):
     monkeypatch.setattr(
         "brainforge_inference_utils.registry.entry_points",
-        _entry_points_for([_EntryPoint("guardrails", AcmeRequestGuard)]),
+        entry_points_for([FakeEntryPoint("guardrails", AcmeRequestGuard)]),
     )
     with pytest.raises(ValueError, match="author.step_name"):
         load_entry_point_steps(REQUEST_STEP_ENTRY_POINT, RequestStep)
@@ -155,9 +114,9 @@ def test_entry_point_name_must_be_author_step_name(monkeypatch):
 def test_duplicate_name_in_one_group_names_both_packages(monkeypatch):
     monkeypatch.setattr(
         "brainforge_inference_utils.registry.entry_points",
-        _entry_points_for([
-            _EntryPoint("acme.guard", AcmeRequestGuard, dist="acme-a"),
-            _EntryPoint("acme.guard", AcmeRequestGuard, dist="acme-b"),
+        entry_points_for([
+            FakeEntryPoint("acme.guard", AcmeRequestGuard, dist="acme-a"),
+            FakeEntryPoint("acme.guard", AcmeRequestGuard, dist="acme-b"),
         ]),
     )
     with pytest.raises(ValueError, match="acme-a and acme-b"):
@@ -167,7 +126,7 @@ def test_duplicate_name_in_one_group_names_both_packages(monkeypatch):
 def test_class_id_must_match_entry_point_name(monkeypatch):
     monkeypatch.setattr(
         "brainforge_inference_utils.registry.entry_points",
-        _entry_points_for([_EntryPoint("acme.guard", MismatchedId)]),
+        entry_points_for([FakeEntryPoint("acme.guard", MismatchedId)]),
     )
     with pytest.raises(ValueError, match="does not match entry point"):
         load_entry_point_steps(REQUEST_STEP_ENTRY_POINT, RequestStep)
@@ -176,24 +135,33 @@ def test_class_id_must_match_entry_point_name(monkeypatch):
 def test_response_class_in_request_group_raises(monkeypatch):
     monkeypatch.setattr(
         "brainforge_inference_utils.registry.entry_points",
-        _entry_points_for([_EntryPoint("acme.guard", AcmeResponseGuard)]),
+        entry_points_for([FakeEntryPoint("acme.guard", AcmeResponseGuard)]),
     )
     with pytest.raises(TypeError, match="not a RequestStep"):
         load_entry_point_steps(REQUEST_STEP_ENTRY_POINT, RequestStep)
 
 
-def test_plugin_id_that_collides_with_builtin_raises(monkeypatch):
-    monkeypatch.setattr(
-        "brainforge_inference_utils.pipeline.steps_by_id",
-        {"acme.guard": AcmeRequestGuard},
-    )
+def test_merge_builtin_and_entry_points_is_deprecated(monkeypatch):
     monkeypatch.setattr(
         "brainforge_inference_utils.registry.entry_points",
-        _entry_points_for([
-            _EntryPoint("acme.guard", AcmeRequestGuard, dist="acme-plugin"),
+        entry_points_for([
+            FakeEntryPoint("acme.guard", AcmeRequestGuard, dist="acme-plugin"),
         ]),
     )
-    with pytest.raises(ValueError, match="conflicts with a built-in step"):
-        build_pipelines(PipelineConfig.model_validate({
-            "request": ["acme.guard"],
-        }))
+
+    class CallerStep(RequestStep):
+        id = "test.caller"
+
+        async def process(self, transaction):
+            return None
+
+    with pytest.warns(DeprecationWarning, match="load_entry_point_steps"):
+        resolved = merge_builtin_and_entry_points(
+            {"test.caller": CallerStep},
+            REQUEST_STEP_ENTRY_POINT,
+            RequestStep,
+        )
+
+    assert resolved["test.caller"] is CallerStep
+    assert resolved["acme.guard"] is AcmeRequestGuard
+

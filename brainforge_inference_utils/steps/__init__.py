@@ -31,13 +31,10 @@
 Step base classes.
 
 Concrete steps ship in separate plugins and are discovered from entry points.
-`steps_by_id` remains for any steps still bundled with this package. Plugin
-step ids use `author.step_name`.
+Step ids use `author.step_name`.
 """
 
 from __future__ import annotations
-
-from typing import Dict, Type
 
 from brainforge_inference_utils.steps.base import (
     RequestStep,
@@ -46,12 +43,9 @@ from brainforge_inference_utils.steps.base import (
     Step,
 )
 
-steps_by_id: Dict[str, Type[Step]] = {}
-
 __all__ = [
     "Step",
     "RequestStep",
     "ResponseStep",
     "RequestContextOption",
-    "steps_by_id",
 ]

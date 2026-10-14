@@ -48,7 +48,6 @@ from brainforge_inference_utils.registry import (
     REQUEST_STEP_ENTRY_POINT,
     RESPONSE_STEP_ENTRY_POINT,
 )
-from brainforge_inference_utils.steps import steps_by_id
 from brainforge_inference_utils.steps.base import (
     RequestStep,
     RequestContextOption,
@@ -71,7 +70,6 @@ __all__ = [
     "RequestStep",
     "ResponseStep",
     "RequestContextOption",
-    "steps_by_id",
     # Pipelines
     "RequestPipeline",
     "ResponsePipeline",

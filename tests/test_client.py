@@ -29,6 +29,7 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
+from unittest.mock import patch
 
 from brainforge_inference_utils.client import BrainForgeClient
 from brainforge_inference_utils.config import PipelineConfig
@@ -40,20 +41,21 @@ from brainforge_inference_utils.steps.base import (
 from brainforge_inference_utils.transaction import UserTransaction
 from helpers import (
     PrefixResponseStep,
+    entry_points_for_steps,
     make_request,
     make_response,
 )
 
 
 class RecordRequestStep(RequestStep):
-    id = "record_request"
+    id = "test.record_request"
 
     async def process(self, transaction: UserTransaction) -> None:
         transaction.request_step_context[self.id] = self.config["value"]
 
 
 class CatalogStep(RequestStep):
-    id = "catalog"
+    id = "test.catalog"
 
     async def process(self, transaction: UserTransaction) -> None:
         return None
@@ -69,7 +71,7 @@ class CatalogStep(RequestStep):
 
 
 class FlagStep(ResponseStep):
-    id = "flag"
+    id = "test.flag"
     request_context_options = (
         RequestContextOption("citations_enabled", (True, False)),
         RequestContextOption("location"),
@@ -80,38 +82,47 @@ class FlagStep(ResponseStep):
 
 
 class RecordResponseStep(ResponseStep):
-    id = "record_response"
+    id = "test.record_response"
 
     async def process(self, transaction: UserTransaction) -> None:
         transaction.response_step_context[self.id] = self.config["value"]
 
 
 class TestBrainForgeClient(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self._entry_points = patch(
+            "brainforge_inference_utils.registry.entry_points",
+            entry_points_for_steps(
+                RecordRequestStep,
+                CatalogStep,
+                PrefixResponseStep,
+                RecordResponseStep,
+                FlagStep,
+            ),
+        )
+        self._entry_points.start()
+
+    def tearDown(self):
+        self._entry_points.stop()
+
     def make_client(self):
         config = PipelineConfig.model_validate({
             "request": [{
-                "id": "record_request",
+                "id": "test.record_request",
                 "config": {"value": {"documents": ["one"]}},
             }],
             "response": [
                 {
-                    "id": "prefix_response",
+                    "id": "test.prefix_response",
                     "config": {"prefix": "processed: "},
                 },
                 {
-                    "id": "record_response",
+                    "id": "test.record_response",
                     "config": {"value": {"citations": [1]}},
                 },
             ],
         })
-        return BrainForgeClient(
-            config,
-            {
-                RecordRequestStep.id: RecordRequestStep,
-                RecordResponseStep.id: RecordResponseStep,
-                PrefixResponseStep.id: PrefixResponseStep,
-            },
-        )
+        return BrainForgeClient(config)
 
     async def test_run_request_pipeline_returns_transaction_with_context(self):
         client = self.make_client()
@@ -122,7 +133,7 @@ class TestBrainForgeClient(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(transaction.response)
         self.assertEqual(
             transaction.request_step_context,
-            {"record_request": {"documents": ["one"]}},
+            {"test.record_request": {"documents": ["one"]}},
         )
         self.assertEqual(transaction.response_step_context, {})
 
@@ -137,30 +148,23 @@ class TestBrainForgeClient(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(transaction.response.response, "processed: answer")
         self.assertEqual(
             transaction.request_step_context,
-            {"record_request": {"documents": ["one"]}},
+            {"test.record_request": {"documents": ["one"]}},
         )
         self.assertEqual(
             transaction.response_step_context,
-            {"record_response": {"citations": [1]}},
+            {"test.record_response": {"citations": [1]}},
         )
 
     async def test_supported_request_context_merges_pipeline_steps(self):
         config = PipelineConfig.model_validate({
             "request": [
-                {"id": "catalog", "config": {"providers": ["news", "docs"]}},
-                {"id": "record_request", "config": {"value": {}}},
-                {"id": "catalog", "config": {"providers": ["docs", "web"]}},
+                {"id": "test.catalog", "config": {"providers": ["news", "docs"]}},
+                {"id": "test.record_request", "config": {"value": {}}},
+                {"id": "test.catalog", "config": {"providers": ["docs", "web"]}},
             ],
-            "response": [{"id": "flag"}],
+            "response": [{"id": "test.flag"}],
         })
-        client = BrainForgeClient(
-            config,
-            {
-                CatalogStep.id: CatalogStep,
-                RecordRequestStep.id: RecordRequestStep,
-                FlagStep.id: FlagStep,
-            },
-        )
+        client = BrainForgeClient(config)
 
         options = await client.supported_request_context()
         self.assertEqual(
@@ -168,4 +172,4 @@ class TestBrainForgeClient(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             list(options["citations_enabled"].values), [True, False])
         self.assertIsNone(options["location"].values)
-        self.assertNotIn("record_request", options)
+        self.assertNotIn("test.record_request", options)

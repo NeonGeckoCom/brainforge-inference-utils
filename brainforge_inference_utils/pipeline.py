@@ -44,15 +44,14 @@ skipped (with a logged reason) rather than failing the pipeline.
 from __future__ import annotations
 
 import logging
-from typing import List, Mapping, Optional, Sequence, Tuple, Type
+from typing import List, Mapping, Sequence, Tuple, Type
 
 from brainforge_inference_utils.config import PipelineConfig
 from brainforge_inference_utils.registry import (
     REQUEST_STEP_ENTRY_POINT,
     RESPONSE_STEP_ENTRY_POINT,
-    merge_builtin_and_entry_points,
+    load_entry_point_steps,
 )
-from brainforge_inference_utils.steps import steps_by_id
 from brainforge_inference_utils.steps.base import (
     RequestStep,
     ResponseStep,
@@ -127,33 +126,27 @@ def _resolve_step(stage_id: str,
 
 def build_pipelines(
     config: PipelineConfig,
-    steps: Optional[Mapping[str, Type[Step]]] = None,
 ) -> Tuple[RequestPipeline, ResponsePipeline]:
     """
     Instantiate both pipelines from configuration.
 
-    Step classes are looked up by id in `steps` when that mapping is passed.
-    Otherwise each side uses `steps_by_id` plus the entry point group for that
-    pipeline (`brainforge.inference.request_steps` or
+    Step classes come from the entry point group for that pipeline
+    (`brainforge.inference.request_steps` or
     `brainforge.inference.response_steps`). A response step placed in the
-    request list (or vice versa) fails fast at build time.
+    request list (or vice versa) is absent from that group and fails at
+    build time.
 
     :param config: Parsed pipeline configuration.
-    :param steps: Optional id -> `Step` class mapping. When omitted, bundled
-        steps are combined with installed entry points.
     :returns: `(request_pipeline, response_pipeline)`.
-    :raises KeyError: If a configured step id is not present in the mapping
-        used for that side.
-    :raises TypeError: If a configured step resolves to the wrong step type.
+    :raises KeyError: If a configured step id is not registered in that
+        pipeline's entry point group.
+    :raises TypeError: If an installed entry point is not the step type for
+        its group.
     """
-    if steps is None:
-        request_step_classes = merge_builtin_and_entry_points(
-            steps_by_id, REQUEST_STEP_ENTRY_POINT, RequestStep)
-        response_step_classes = merge_builtin_and_entry_points(
-            steps_by_id, RESPONSE_STEP_ENTRY_POINT, ResponseStep)
-    else:
-        request_step_classes = steps
-        response_step_classes = steps
+    request_step_classes = load_entry_point_steps(
+        REQUEST_STEP_ENTRY_POINT, RequestStep)
+    response_step_classes = load_entry_point_steps(
+        RESPONSE_STEP_ENTRY_POINT, ResponseStep)
 
     request_steps: List[RequestStep] = []
     for entry in config.request:
@@ -161,10 +154,6 @@ def build_pipelines(
             LOG.info("Request step %r disabled by config", entry.id)
             continue
         cls = _resolve_step(entry.id, request_step_classes)
-        if not (isinstance(cls, type) and issubclass(cls, RequestStep)):
-            raise TypeError(
-                f"Step {entry.id!r} is configured as a request step but "
-                f"{getattr(cls, '__name__', cls)!r} is not a RequestStep")
         request_steps.append(cls(entry.config))
 
     response_steps: List[ResponseStep] = []
@@ -173,10 +162,6 @@ def build_pipelines(
             LOG.info("Response step %r disabled by config", entry.id)
             continue
         cls = _resolve_step(entry.id, response_step_classes)
-        if not (isinstance(cls, type) and issubclass(cls, ResponseStep)):
-            raise TypeError(
-                f"Step {entry.id!r} is configured as a response step but "
-                f"{getattr(cls, '__name__', cls)!r} is not a ResponseStep")
         response_steps.append(cls(entry.config))
 
     LOG.info("Built request pipeline: %s",

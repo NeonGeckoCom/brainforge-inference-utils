@@ -35,7 +35,7 @@ response, and two per-side context dicts (`request_step_context` and
 | `RequestContextOption` | One `request_context` key a step reads, with optional allowed values for hosts to present. |
 | `RequestPipeline` / `ResponsePipeline` | Run an ordered list of steps over a transaction. |
 | `PipelineConfig` / `StepConfig` | Declarative, ordered step lists (see below). |
-| `build_pipelines(config)` | Build both pipelines from config. Bundled ids come from `steps_by_id`; plugin ids come from entry points. |
+| `build_pipelines(config)` | Build both pipelines from config. Step classes come from the entry point group for that pipeline. |
 
 ## Usage sketch
 

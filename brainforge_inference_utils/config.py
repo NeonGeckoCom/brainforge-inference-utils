@@ -32,8 +32,8 @@ Pipeline configuration schema.
 
 Configuration is two explicitly ordered lists of step entries: `request` and
 `response`. Order is authoritative; the pipeline runs steps in exactly the
-order given and does not reorder. Each entry names a step `id` (a bundled id
-from `steps_by_id`, or a plugin id `author.step_name`) and optionally carries
+order given and does not reorder. Each entry names a step `id`
+(`author.step_name`, the entry point name) and optionally carries
 step-specific `config`.
 
 Example (YAML)::
@@ -69,8 +69,8 @@ class StepConfig(BaseModel):
     """
     A single step entry within a pipeline.
 
-    :param id: Step id to resolve and instantiate. Bundled steps use their
-        current ids. Plugin steps use `author.step_name`.
+    :param id: Step id to resolve and instantiate. This is the entry point
+        name, `author.step_name`.
     :param enabled: When false, the entry is skipped at build time (a
         convenient way to turn a step off without deleting its config).
     :param config: Step-specific configuration passed to the step constructor.

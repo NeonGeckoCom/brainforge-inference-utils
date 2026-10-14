@@ -31,14 +31,15 @@
 Discovery of plugin steps via setuptools entry points.
 
 Request and response steps are registered in separate groups, so the same
-`author.step_name` id can exist on both sides. Bundled steps shipped in this
-package stay in `steps_by_id` and are merged with whichever group is loaded.
+`author.step_name` id can exist on both sides. Every step class comes from
+the entry point group for its pipeline.
 """
 
 from __future__ import annotations
 
 import logging
 import re
+import warnings
 from importlib.metadata import entry_points
 from typing import Dict, Mapping, Type
 
@@ -120,15 +121,24 @@ def merge_builtin_and_entry_points(
     expected_type: Type[Step],
 ) -> Dict[str, Type[Step]]:
     """
-    Combine bundled steps with classes discovered from `group`.
+    Combine a caller-supplied step map with classes discovered from `group`.
 
-    :param builtin: In-package id -> step class mapping (`steps_by_id`).
+    Deprecated. This package no longer ships built-in steps. Call
+    `load_entry_point_steps` instead. The `builtin` map is still copied and
+    then extended with the entry point group so existing callers keep working.
+
+    :param builtin: Caller-supplied id -> step class mapping.
     :param group: Entry point group for this pipeline side.
     :param expected_type: Step base class that group must provide.
-    :returns: A new mapping. `builtin` is copied unchanged, then plugin steps
-        are added.
+    :returns: A new mapping. `builtin` is copied, then plugin steps are added.
     :raises ValueError: If a plugin id is already present in `builtin`.
     """
+    warnings.warn(
+        "merge_builtin_and_entry_points is deprecated; this package no longer "
+        "ships built-in steps. Use load_entry_point_steps instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     resolved = dict(builtin)
     for step_id, step_cls in load_entry_point_steps(group, expected_type).items():
         if step_id in resolved:

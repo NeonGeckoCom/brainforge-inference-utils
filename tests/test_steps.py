@@ -56,7 +56,7 @@ class TestStepBase:
 
     def test_repr_includes_class_and_id(self):
         step = AppendQueryStep()
-        assert repr(step) == "<AppendQueryStep id='append_query'>"
+        assert repr(step) == "<AppendQueryStep id='test.append_query'>"
 
     def test_default_request_context_options_are_empty(self):
         assert list(AppendQueryStep().request_context_options) == []
