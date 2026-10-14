@@ -40,15 +40,15 @@ Example (YAML)::
 
     pipeline:
       request:
-        - id: neon.locale
+        - id: brainforge.locale
           config:
             mcp_url: https://mcp.neonaiservices2.com/mcp
             default_location: Renton, WA, USA
             timeout: 5.0
-        - {id: neon.rag, config: {mcp_url: https://mcp.neonaiservices2.com/mcp, top_k: 10}}
-        - neon.history                             # last: valid, truncated history
+        - {id: brainforge.rag, config: {mcp_url: https://mcp.neonaiservices2.com/mcp, top_k: 10}}
+        - brainforge.history                       # last: valid, truncated history
       response:
-        - id: neon.citations
+        - id: brainforge.citations
           config:
             mcp_url: https://mcp.neonaiservices2.com/mcp
             openai_url: https://hana.example/brainforge/openai/chat/completions

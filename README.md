@@ -92,7 +92,7 @@ response steps use different groups:
 
 Both groups use the step id `author.step_name`:
 
-- `author` is the plugin developer's slug (`acme`, `neon`).
+- `author` is the plugin developer's slug (`acme`, `brainforge`).
 - `step_name` names that one step (`guardrails`, `rag`).
 
 Each part is lowercase letters, digits, and underscores, and starts with a
@@ -127,9 +127,9 @@ First-party steps ship in their own packages:
 
 | Package | Steps |
 | --- | --- |
-| `neon-inference-plugin-locale` | `neon.locale` |
-| `neon-inference-plugin-rag` | `neon.rag`, `neon.citations` |
-| `neon-inference-plugin-history` | `neon.history` |
+| `brainforge-inference-plugin-locale` | `brainforge.locale` |
+| `brainforge-inference-plugin-rag` | `brainforge.rag`, `brainforge.citations` |
+| `brainforge-inference-plugin-history` | `brainforge.history` |
 
 This package does not register those steps. Install the plugin to use the id.
 
