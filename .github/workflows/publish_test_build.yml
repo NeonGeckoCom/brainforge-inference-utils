@@ -1,0 +1,16 @@
+name: Publish Alpha Build
+on:
+  push:
+    branches:
+      - dev
+    paths-ignore:
+      - 'brainforge_inference_utils/version.py'
+
+jobs:
+  publish_alpha_release:
+    uses: neongeckocom/.github/.github/workflows/publish_alpha_release.yml@master
+    secrets: inherit
+    with:
+      publish_pypi: true
+      version_file: "brainforge_inference_utils/version.py"
+      publish_prerelease: true
