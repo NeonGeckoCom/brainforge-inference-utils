@@ -1,0 +1,4 @@
+pydantic~=2.0
+neon-data-models~=0.0.2,>=0.0.3a8
+fastmcp~=2.3
+requests
